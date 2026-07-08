@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  password           String
+  username           String   @unique
+  firstName          String?
+  lastName           String?
+  phoneNumber        String?
+  role               Role     @default(END_USER)
+  mustChangePassword Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+
+  createdTickets     Ticket[]            @relation("TicketCreator")
+  assignedTickets    Ticket[]            @relation("TicketAssignee")
+  ticketComments     TicketComment[]
+  ticketActivities   TicketActivity[]
+  assignedAssets     Asset[]
+  assetHistory       AssetHistory[]
+  requestedLoans     Loan[]              @relation("LoanRequester")
+  approvedLoans      Loan[]              @relation("LoanApprover")
+  loans              Loan[]              @relation("LoanUser")
+  notifications      Notification[]
+  createdVisits      Visit[]             @relation("CreatedVisits")
+}
+
+enum Role {
+  ADMIN
+  IT_SUPPORT
+  END_USER
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    TicketPriority @default(LOW)
+  createdById String
+  createdBy   User     @relation("TicketCreator", fields: [createdById], references: [id])
+  assignedToId String?
+  assignedTo  User?    @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  fieldId     String?
+  field       Field?   @relation(fields: [fieldId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  comments    TicketComment[]
+  attachments TicketAttachment[]
+  activities  TicketActivity[]
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  ESCALATED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TicketAttachment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  filePath  String
+  fileName  String
+  fileType  String
+  size      Int
+  createdAt DateTime @default(now())
+}
+
+model TicketActivity {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+}
+
+model Asset {
+  id             String   @id @default(uuid())
+  internalCode   String   @unique
+  serial         String
+  brand          String
+  model          String
+  status         AssetStatus @default(AVAILABLE)
+  assignedUserId String?
+  assignedUser   User?    @relation(fields: [assignedUserId], references: [id])
+  fieldId        String?
+  field          Field?   @relation(fields: [fieldId], references: [id])
+  imagePath      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  history        AssetHistory[]
+  loans          Loan[]
+}
+
+enum AssetStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+model AssetHistory {
+  id        String   @id @default(uuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Field {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  location        String
+  description     String?
+  supervisorName  String?
+  supervisorPhone String?
+  coordinatorName String?
+  coordinatorPhone String?
+  hseName         String?
+  hsePhone        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  assets  Asset[]
+  visits  Visit[]
+  tickets Ticket[]
+}
+
+
+model Loan {
+  id                 String   @id @default(uuid())
+  assetId            String
+  asset              Asset    @relation(fields: [assetId], references: [id])
+  userId             String
+  user               User     @relation("LoanUser", fields: [userId], references: [id])
+  requestedById      String
+  requestedBy        User     @relation("LoanRequester", fields: [requestedById], references: [id])
+  approvedById       String?
+  approvedBy         User?    @relation("LoanApprover", fields: [approvedById], references: [id])
+  deliveryDate       DateTime?
+  expectedReturnDate DateTime
+  actualReturnDate   DateTime?
+  returnCondition    String?
+  status             LoanStatus @default(REQUESTED)
+  notes              String?
+  confirmationText   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  history            LoanHistory[]
+}
+
+enum LoanStatus {
+  REQUESTED
+  APPROVED
+  DELIVERED
+  RETURNED
+  REJECTED
+}
+
+model LoanHistory {
+  id        String   @id @default(uuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id])
+  action    String
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  type       String
+  message    String
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model Visit {
+  id              String   @id @default(uuid())
+  fieldId         String
+  field           Field    @relation(fields: [fieldId], references: [id])
+  startDate       DateTime
+  endDate         DateTime
+  description     String?
+  reportPath      String?  
+  expensesTotal   Float    @default(0)
+  expensesDetails Json?    
+  createdById     String
+  createdBy       User     @relation("CreatedVisits", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
