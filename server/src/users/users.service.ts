@@ -1,4 +1,4 @@
-ximport { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
