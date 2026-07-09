@@ -7,9 +7,10 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: ReactNode
+  maxWidthClassName?: string
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, maxWidthClassName = 'max-w-2xl' }: ModalProps) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -36,7 +37,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
       />
       
       {/* Modal Content */}
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col max-h-[90vh]">
+      <div className={`relative w-full ${maxWidthClassName} bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col max-h-[90vh]`}>
         <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
           <button 

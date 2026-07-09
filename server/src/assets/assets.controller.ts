@@ -33,6 +33,11 @@ export class AssetsController {
     });
   }
 
+  @Get('form-options')
+  getFormOptions() {
+    return this.assetsService.getFormOptions();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.assetsService.findOne(id);

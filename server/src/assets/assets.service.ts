@@ -21,22 +21,47 @@ const userSelect = {
   role: true,
 };
 
+const assetFormFields = [
+  'equipmentType',
+  'operatingSystem',
+  'ram',
+  'ssdStorage',
+  'hddStorage',
+  'screenSize',
+  'antivirus',
+] as const;
+
 @Injectable()
 export class AssetsService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: any, userId: string): Promise<Asset> {
+    const internalCode = data.internalCode || `ACT-${Date.now()}`;
+    const assetData: any = {
+      internalCode,
+      serial: data.serial,
+      brand: data.brand,
+      model: data.model,
+      equipmentType: data.equipmentType,
+      operatingSystem: data.operatingSystem,
+      processor: data.processor,
+      ram: data.ram,
+      ssdStorage: data.ssdStorage,
+      hddStorage: data.hddStorage,
+      screenCode: data.screenCode,
+      screenBrand: data.screenBrand,
+      screenSerial: data.screenSerial,
+      screenSize: data.screenSize,
+      antivirus: data.antivirus,
+      observations: data.observations,
+      status: data.status || 'AVAILABLE',
+      imagePath: data.imagePath,
+    };
+    if (data.assignedUserId) assetData.assignedUser = { connect: { id: data.assignedUserId } };
+    if (data.fieldId) assetData.field = { connect: { id: data.fieldId } };
+
     const asset = await this.prisma.asset.create({
-      data: {
-        internalCode: data.internalCode,
-        serial: data.serial,
-        brand: data.brand,
-        model: data.model,
-        status: data.status || 'AVAILABLE',
-        imagePath: data.imagePath,
-        ...(data.assignedUserId && { assignedUser: { connect: { id: data.assignedUserId } } }),
-        ...(data.fieldId && { field: { connect: { id: data.fieldId } } }),
-      },
+      data: assetData,
       include: { assignedUser: { select: userSelect }, field: true },
     });
 
@@ -59,6 +84,10 @@ export class AssetsService {
         { serial: { contains: filters.search, mode: 'insensitive' } },
         { brand: { contains: filters.search, mode: 'insensitive' } },
         { model: { contains: filters.search, mode: 'insensitive' } },
+        { equipmentType: { contains: filters.search, mode: 'insensitive' } },
+        { operatingSystem: { contains: filters.search, mode: 'insensitive' } },
+        { screenCode: { contains: filters.search, mode: 'insensitive' } },
+        { screenSerial: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -98,6 +127,36 @@ export class AssetsService {
     return asset;
   }
 
+  async getFormOptions() {
+    const assets = await this.prisma.asset.findMany({
+      select: {
+        brand: true,
+        screenBrand: true,
+        equipmentType: true,
+        operatingSystem: true,
+        ram: true,
+        ssdStorage: true,
+        hddStorage: true,
+        screenSize: true,
+        antivirus: true,
+      } as any,
+    });
+
+    const unique = (values: Array<string | null | undefined>) =>
+      [...new Set(values.filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))].sort((a, b) =>
+        a.localeCompare(b),
+      );
+
+    return {
+      brand: unique(assets.map((asset: any) => asset.brand)),
+      screenBrand: unique(assets.map((asset: any) => asset.screenBrand)),
+      ...assetFormFields.reduce((acc, field) => {
+        acc[field] = unique(assets.map((asset: any) => asset[field]));
+        return acc;
+      }, {} as Record<string, string[]>),
+    };
+  }
+
   async update(id: string, data: any, userId: string): Promise<Asset> {
     const current = await this.prisma.asset.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Activo no encontrado');
@@ -107,6 +166,12 @@ export class AssetsService {
     if (data.serial) updateData.serial = data.serial;
     if (data.brand) updateData.brand = data.brand;
     if (data.model) updateData.model = data.model;
+    assetFormFields.forEach((field) => {
+      if (data[field] !== undefined) updateData[field] = data[field] || null;
+    });
+    ['processor', 'screenCode', 'screenBrand', 'screenSerial', 'observations'].forEach((field) => {
+      if (data[field] !== undefined) updateData[field] = data[field] || null;
+    });
     if (data.imagePath !== undefined) updateData.imagePath = data.imagePath;
     if (data.status) updateData.status = data.status;
     if (data.fieldId !== undefined) {

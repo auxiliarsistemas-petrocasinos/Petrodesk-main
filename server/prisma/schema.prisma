@@ -116,6 +116,18 @@ model Asset {
   serial         String
   brand          String
   model          String
+  equipmentType  String?
+  operatingSystem String?
+  processor      String?
+  ram            String?
+  ssdStorage     String?
+  hddStorage     String?
+  screenCode     String?
+  screenBrand    String?
+  screenSerial   String?
+  screenSize     String?
+  antivirus      String?
+  observations   String?
   status         AssetStatus @default(AVAILABLE)
   assignedUserId String?
   assignedUser   User?    @relation(fields: [assignedUserId], references: [id])
