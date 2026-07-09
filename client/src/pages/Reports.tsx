@@ -206,7 +206,7 @@ export default function Reports() {
   const renderLoansReport = () => {
     if (!loansSummary) return null
     const statusData = Object.entries(loansSummary.byStatus || {}).map(([name, value]) => ({
-      name: { REQUESTED: 'Solicitados', APPROVED: 'Aprobados', DELIVERED: 'Entregados', RETURNED: 'Devueltos', REJECTED: 'Rechazados' }[name] || name,
+      name: { REQUESTED: 'Solicitados', APPROVED: 'Aprobados', DELIVERED: 'Entregados', RETURNED: 'Devueltos', REJECTED: 'Denegados' }[name] || name,
       cantidad: value as number,
     }))
 
@@ -240,7 +240,7 @@ export default function Reports() {
                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', backgroundColor: '#0f172a', color: '#fff', fontSize: '12px' }} />
                 <Bar dataKey="cantidad" radius={[8, 8, 0, 0]}>
-                  {statusData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+                  {statusData.map((entry, index) => <Cell key={index} fill={{'Solicitados': '#eab308', 'Aprobados': '#10b981', 'Entregados': '#3b82f6', 'Devueltos': '#64748b', 'Denegados': '#f43f5e'}[entry.name] || COLORS[index % COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

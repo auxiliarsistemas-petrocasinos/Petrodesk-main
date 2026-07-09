@@ -479,7 +479,7 @@ export default function Loans() {
                 >
                   <option value="GOOD">Buena condición</option>
                   <option value="DAMAGED">Con daños</option>
-                  <option value="NEEDS_REPAIR">Requiere reparacion</option>
+                  <option value="NEEDS_REPAIR">Requiere reparaciÓn</option>
                 </select>
               </div>
             )}
