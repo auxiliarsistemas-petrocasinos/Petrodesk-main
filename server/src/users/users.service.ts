@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(): Promise<User[]> {
     return this.prisma.user.findMany({
@@ -13,8 +13,16 @@ export class UsersService {
     });
   }
 
-  async findOne(username: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { username: username.toLowerCase() } });
+  async findOne(usernameOrEmail: string): Promise<User | null> {
+    const identifier = usernameOrEmail.toLowerCase();
+    return this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: identifier },
+          { email: identifier },
+        ],
+      },
+    });
   }
 
   async findById(id: string): Promise<User | null> {
@@ -24,7 +32,7 @@ export class UsersService {
   async create(data: Prisma.UserCreateInput): Promise<User> {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
-    
+
     return this.prisma.user.create({
       data: {
         ...data,

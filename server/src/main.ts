@@ -26,7 +26,7 @@ export const createNestServer = async () => {
   );
   
   app.enableCors({
-    origin: '*', // En producción deberías poner aquí la URL de tu frontend
+    origin: '*',
     credentials: true,
   });
 
