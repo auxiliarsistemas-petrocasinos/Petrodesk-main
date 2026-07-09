@@ -94,6 +94,18 @@ function StatusBadge({ loan, status }: { loan?: any; status?: string }) {
   )
 }
 
+function historyActionTextClass(action?: string) {
+  const colors: Record<LoanStatus, string> = {
+    DELIVERED: 'text-blue-600 dark:text-blue-400',
+    APPROVED: 'text-emerald-600 dark:text-emerald-400',
+    REQUESTED: 'text-yellow-600 dark:text-yellow-400',
+    REJECTED: 'text-rose-600 dark:text-rose-400',
+    RETURNED: 'text-green-800 dark:text-green-300',
+  }
+
+  return colors[(action || '').toUpperCase() as LoanStatus] || 'text-slate-700 dark:text-slate-200'
+}
+
 export default function Loans() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { loans, loading, fetchLoans, createLoan, approveLoan, rejectLoan, deliverLoan, returnLoan } = useLoans()
@@ -554,7 +566,7 @@ export default function Loans() {
               <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
                 {(selectedLoan.history || []).map((item: any) => (
                   <div key={item.id} className="border-b border-slate-50 pb-2 text-sm last:border-0 dark:border-slate-800">
-                    <p className="font-bold text-slate-700 dark:text-slate-200">{item.action}</p>
+                    <p className={`font-bold ${historyActionTextClass(item.action)}`}>{item.action}</p>
                     {item.notes && <p className="text-slate-500 dark:text-slate-400">{item.notes}</p>}
                     <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(item.createdAt)}</p>
                   </div>
