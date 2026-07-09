@@ -5,7 +5,7 @@ import express from 'express';
 
 let cachedServer: express.Express | undefined;
 
-export const createNestServer = async () => {
+export const createNestServer = async (): Promise<express.Express> => {
   const expressInstance = express();
 
   // CORS Middleware nativo de Express para resolver el preflight inmediatamente en Vercel

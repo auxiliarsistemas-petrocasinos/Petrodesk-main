@@ -11,11 +11,12 @@ import { ReportsModule } from './reports/reports.module';
 import { VisitsModule } from './visits/visits.module';
 import { SupabaseModule } from './supabase.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule, UsersModule, TicketsModule, AssetsModule, FieldsModule, LoansModule, NotificationsModule, ReportsModule, VisitsModule, SupabaseModule, DashboardModule],
 
-  controllers: [],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule {}
