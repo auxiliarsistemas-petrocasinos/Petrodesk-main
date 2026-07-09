@@ -217,12 +217,12 @@ export default function Loans() {
     ? 'Registrar entrega'
     : actionModal?.action === 'reject'
     ? 'Rechazar prestamo'
-    : 'Registrar devolucion'
+    : 'Registrar devolución'
   const actionButtonLabel = actionModal?.action === 'deliver'
     ? 'Registrar entrega'
     : actionModal?.action === 'reject'
     ? 'Rechazar prestamo'
-    : 'Registrar devolucion'
+    : 'Registrar devolución'
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -477,8 +477,8 @@ export default function Loans() {
                   onChange={(event) => setReturnCondition(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 >
-                  <option value="GOOD">Buena condicion</option>
-                  <option value="DAMAGED">Con danos</option>
+                  <option value="GOOD">Buena condición</option>
+                  <option value="DAMAGED">Con daños</option>
                   <option value="NEEDS_REPAIR">Requiere reparacion</option>
                 </select>
               </div>
