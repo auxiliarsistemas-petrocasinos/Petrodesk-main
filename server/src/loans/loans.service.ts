@@ -28,6 +28,7 @@ export class LoansService {
     if (!data.assetId) throw new BadRequestException('Debe seleccionar un activo');
     if (!data.userId) throw new BadRequestException('Debe seleccionar un solicitante');
     if (!data.expectedReturnDate) throw new BadRequestException('Debe indicar la fecha esperada de devolucion');
+    if (!data.notes?.trim()) throw new BadRequestException('Debe diligenciar los comentarios');
 
     const expectedReturnDate = new Date(data.expectedReturnDate);
     if (Number.isNaN(expectedReturnDate.getTime())) {
@@ -177,6 +178,8 @@ export class LoansService {
     }
 
     const cleanNotes = notes?.trim();
+    if (!cleanNotes) throw new BadRequestException('Debe diligenciar los comentarios del rechazo');
+
     const updated = await this.prisma.loan.update({
       where: { id },
       data: {
@@ -216,6 +219,9 @@ export class LoansService {
       throw new BadRequestException('El activo ya no esta disponible para entrega');
     }
 
+    const cleanNotes = deliveryNotes?.trim();
+    if (!cleanNotes) throw new BadRequestException('Debe diligenciar los comentarios de entrega');
+
     const [updated] = await this.prisma.$transaction([
       this.prisma.loan.update({
         where: { id },
@@ -234,7 +240,6 @@ export class LoansService {
       }),
     ]);
 
-    const cleanNotes = deliveryNotes?.trim();
     await this.prisma.loanHistory.create({
       data: {
         loanId: id,
@@ -271,6 +276,8 @@ export class LoansService {
     }
 
     const cleanNotes = notes?.trim();
+    if (!cleanNotes) throw new BadRequestException('Debe diligenciar los comentarios de devolucion');
+
     const [updated] = await this.prisma.$transaction([
       this.prisma.loan.update({
         where: { id },
