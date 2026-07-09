@@ -180,6 +180,7 @@ export default function Assets() {
     e.preventDefault()
     const payload = {
       ...createForm,
+      internalCode: editingId ? undefined : `ACT-${Date.now()}`,
       equipmentType: customEquipmentType.trim() || createForm.equipmentType,
       assignedUserId: createForm.assignedUserId || undefined,
       fieldId: createForm.fieldId || undefined,

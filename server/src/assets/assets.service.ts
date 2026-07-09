@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Asset, AssetStatus, Prisma } from '@prisma/client';
 
@@ -32,8 +32,34 @@ const assetFormFields = [
 ] as const;
 
 @Injectable()
-export class AssetsService {
+export class AssetsService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.ensureAssetFormColumns();
+  }
+
+  private async ensureAssetFormColumns() {
+    await this.prisma.$executeRawUnsafe(`
+      ALTER TABLE "Asset"
+      ADD COLUMN IF NOT EXISTS "equipmentType" TEXT,
+      ADD COLUMN IF NOT EXISTS "operatingSystem" TEXT,
+      ADD COLUMN IF NOT EXISTS "processor" TEXT,
+      ADD COLUMN IF NOT EXISTS "ram" TEXT,
+      ADD COLUMN IF NOT EXISTS "ssdStorage" TEXT,
+      ADD COLUMN IF NOT EXISTS "hddStorage" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenCode" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenBrand" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenSerial" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenSize" TEXT,
+      ADD COLUMN IF NOT EXISTS "antivirus" TEXT,
+      ADD COLUMN IF NOT EXISTS "observations" TEXT;
+    `);
+  }
+
+  private optional(value: unknown) {
+    return typeof value === 'string' && value.trim() === '' ? null : value;
+  }
 
   async create(data: any, userId: string): Promise<Asset> {
     const internalCode = data.internalCode || `ACT-${Date.now()}`;
@@ -42,18 +68,18 @@ export class AssetsService {
       serial: data.serial,
       brand: data.brand,
       model: data.model,
-      equipmentType: data.equipmentType,
-      operatingSystem: data.operatingSystem,
-      processor: data.processor,
-      ram: data.ram,
-      ssdStorage: data.ssdStorage,
-      hddStorage: data.hddStorage,
-      screenCode: data.screenCode,
-      screenBrand: data.screenBrand,
-      screenSerial: data.screenSerial,
-      screenSize: data.screenSize,
-      antivirus: data.antivirus,
-      observations: data.observations,
+      equipmentType: this.optional(data.equipmentType),
+      operatingSystem: this.optional(data.operatingSystem),
+      processor: this.optional(data.processor),
+      ram: this.optional(data.ram),
+      ssdStorage: this.optional(data.ssdStorage),
+      hddStorage: this.optional(data.hddStorage),
+      screenCode: this.optional(data.screenCode),
+      screenBrand: this.optional(data.screenBrand),
+      screenSerial: this.optional(data.screenSerial),
+      screenSize: this.optional(data.screenSize),
+      antivirus: this.optional(data.antivirus),
+      observations: this.optional(data.observations),
       status: data.status || 'AVAILABLE',
       imagePath: data.imagePath,
     };
