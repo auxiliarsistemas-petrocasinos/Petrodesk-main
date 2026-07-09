@@ -1,75 +1,127 @@
-import { useEffect, useState, useCallback } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Plus, RefreshCw, ChevronLeft, ChevronRight, ArrowUpRight,
-  X, Clock, AlertTriangle, CheckCircle, XCircle, Truck, CornerDownLeft,
-  Package, User, Calendar
+  AlertTriangle,
+  ArrowUpRight,
+  Calendar,
+  CheckCircle,
+  Clock,
+  CornerDownLeft,
+  Package,
+  Plus,
+  RefreshCw,
+  Truck,
+  User,
+  X,
+  XCircle,
 } from 'lucide-react'
 import Modal from '../components/Modal'
+import { showToast } from '../components/Toast'
 import { useLoans } from '../hooks/useLoans'
 import { api } from '../lib/api'
-import { showToast } from '../components/Toast'
 
-const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  REQUESTED: { label: 'Solicitado', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50', icon: Clock },
-  APPROVED: { label: 'Aprobado', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50', icon: CheckCircle },
-  DELIVERED: { label: 'Entregado', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50', icon: Truck },
-  RETURNED: { label: 'Devuelto', color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: CornerDownLeft },
-  REJECTED: { label: 'Rechazado', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50', icon: XCircle },
+type LoanStatus = 'REQUESTED' | 'APPROVED' | 'DELIVERED' | 'RETURNED' | 'REJECTED'
+
+const statusConfig: Record<string, { label: string; className: string; icon: any }> = {
+  REQUESTED: {
+    label: 'Solicitado',
+    className: 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/50',
+    icon: Clock,
+  },
+  APPROVED: {
+    label: 'Aprobado',
+    className: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50',
+    icon: CheckCircle,
+  },
+  DELIVERED: {
+    label: 'Entregado',
+    className: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50',
+    icon: Truck,
+  },
+  RETURNED: {
+    label: 'Devuelto',
+    className: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+    icon: CornerDownLeft,
+  },
+  REJECTED: {
+    label: 'Rechazado',
+    className: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/50',
+    icon: XCircle,
+  },
+  OVERDUE: {
+    label: 'Vencido',
+    className: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/50',
+    icon: AlertTriangle,
+  },
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = statusConfig[status] || statusConfig.REQUESTED
-  const Icon = cfg.icon
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border ${cfg.bg} ${cfg.color}`}>
-      <Icon size={12} /> {cfg.label}
-    </span>
-  )
+function getUserDisplayName(user: any) {
+  if (!user) return '-'
+  return user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username
+}
+
+function formatDate(value?: string | Date | null) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function formatDateOnly(value?: string | Date | null) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('es-CO', { dateStyle: 'medium' })
 }
 
 function isOverdue(loan: any) {
-  if (loan.status !== 'DELIVERED') return false
-  return new Date(loan.expectedReturnDate) < new Date()
+  return loan.status === 'DELIVERED' && new Date(loan.expectedReturnDate) < new Date()
 }
 
 function isExpiringSoon(loan: any) {
   if (loan.status !== 'DELIVERED') return false
-  const now = new Date()
-  const expected = new Date(loan.expectedReturnDate)
-  const diff = expected.getTime() - now.getTime()
+  const diff = new Date(loan.expectedReturnDate).getTime() - Date.now()
   return diff > 0 && diff <= 72 * 60 * 60 * 1000
+}
+
+function StatusBadge({ loan, status }: { loan?: any; status?: string }) {
+  const key = loan && isOverdue(loan) ? 'OVERDUE' : status || loan?.status || 'REQUESTED'
+  const cfg = statusConfig[key] || statusConfig.REQUESTED
+  const Icon = cfg.icon
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${cfg.className}`}>
+      <Icon size={12} />
+      {cfg.label}
+    </span>
+  )
 }
 
 export default function Loans() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { loans, loading, totalPages, total, fetchLoans, createLoan, approveLoan, rejectLoan, deliverLoan, returnLoan } = useLoans()
+  const { loans, loading, fetchLoans, createLoan, approveLoan, rejectLoan, deliverLoan, returnLoan } = useLoans()
 
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
   const [overdueFilter, setOverdueFilter] = useState(searchParams.get('overdue') === 'true')
-  const [page, setPage] = useState(1)
-
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedLoan, setSelectedLoan] = useState<any>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-
-  const [createForm, setCreateForm] = useState({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
-  const [actionNotes, setActionNotes] = useState('')
-  const [returnCondition, setReturnCondition] = useState('GOOD')
-
   const [users, setUsers] = useState<any[]>([])
   const [availableAssets, setAvailableAssets] = useState<any[]>([])
+  const [createForm, setCreateForm] = useState({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
 
-  useEffect(() => {
-    api.get('/users').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
-    api.get('/assets?status=AVAILABLE&pageSize=100').then(data => setAvailableAssets(data.data || [])).catch(() => {})
+  const loadReferenceData = useCallback(() => {
+    api.get('/users').then((data) => setUsers(Array.isArray(data) ? data.filter((u: any) => u.isActive !== false) : [])).catch(() => {})
+    api.get('/assets?status=AVAILABLE&pageSize=100').then((data) => setAvailableAssets(data.data || [])).catch(() => {})
   }, [])
 
   const loadLoans = useCallback(() => {
-    fetchLoans({ status: statusFilter, overdue: overdueFilter || undefined, page, pageSize: 15 })
-  }, [fetchLoans, statusFilter, overdueFilter, page])
+    fetchLoans({ status: statusFilter as LoanStatus, overdue: overdueFilter || undefined, page: 1, pageSize: 100 })
+  }, [fetchLoans, statusFilter, overdueFilter])
 
-  useEffect(() => { loadLoans() }, [loadLoans])
+  useEffect(() => {
+    loadReferenceData()
+  }, [loadReferenceData])
+
+  useEffect(() => {
+    loadLoans()
+  }, [loadLoans])
 
   useEffect(() => {
     const params: Record<string, string> = {}
@@ -78,132 +130,96 @@ export default function Loans() {
     setSearchParams(params, { replace: true })
   }, [statusFilter, overdueFilter, setSearchParams])
 
+  const activeLoans = useMemo(
+    () => loans.filter((loan: any) => ['REQUESTED', 'APPROVED', 'DELIVERED'].includes(loan.status)),
+    [loans],
+  )
+  const returnedLoans = useMemo(
+    () => loans.filter((loan: any) => loan.status === 'RETURNED').slice(0, 20),
+    [loans],
+  )
+  const rejectedLoans = useMemo(
+    () => loans.filter((loan: any) => loan.status === 'REJECTED').slice(0, 20),
+    [loans],
+  )
+
+  const refreshAll = useCallback(() => {
+    loadLoans()
+    loadReferenceData()
+  }, [loadLoans, loadReferenceData])
+
+  const handleCreate = async (event: FormEvent) => {
+    event.preventDefault()
+    try {
+      await createLoan(createForm)
+      setCreateForm({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
+      setIsCreateOpen(false)
+      refreshAll()
+    } catch {}
+  }
+
   const openDetail = async (id: string) => {
     setDetailLoading(true)
     try {
-      const data = await api.get(`/loans/${id}`)
-      setSelectedLoan(data)
+      setSelectedLoan(await api.get(`/loans/${id}`))
     } catch (err: any) {
-      showToast(err.message || 'Error al cargar préstamo', 'error')
+      showToast(err.message || 'Error al cargar prestamo', 'error')
     } finally {
       setDetailLoading(false)
     }
   }
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const runAction = async (loan: any, action: 'approve' | 'reject' | 'deliver' | 'return') => {
     try {
-      await createLoan(createForm)
-      setCreateForm({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
-      setIsCreateOpen(false)
-      loadLoans()
-      // Refresh available assets
-      api.get('/assets?status=AVAILABLE&pageSize=100').then(data => setAvailableAssets(data.data || [])).catch(() => {})
-    } catch {}
-  }
-
-  const handleAction = async (action: string) => {
-    if (!selectedLoan) return
-    try {
-      switch (action) {
-        case 'approve':
-          await approveLoan(selectedLoan.id)
-          break
-        case 'reject':
-          await rejectLoan(selectedLoan.id, actionNotes)
-          break
-        case 'deliver':
-          await deliverLoan(selectedLoan.id, actionNotes)
-          break
-        case 'return':
-          await returnLoan(selectedLoan.id, returnCondition, actionNotes)
-          break
+      if (action === 'approve') await approveLoan(loan.id)
+      if (action === 'reject') {
+        const notes = window.prompt('Motivo de rechazo')?.trim()
+        if (!notes) return
+        await rejectLoan(loan.id, notes)
       }
-      setActionNotes('')
-      loadLoans()
-      openDetail(selectedLoan.id)
+      if (action === 'deliver') {
+        const notes = window.prompt('Observaciones de entrega (opcional)') ?? ''
+        await deliverLoan(loan.id, notes)
+      }
+      if (action === 'return') {
+        const notes = window.prompt('Observaciones de devolucion (opcional)') ?? ''
+        await returnLoan(loan.id, 'GOOD', notes)
+      }
+      refreshAll()
+      if (selectedLoan?.id === loan.id) openDetail(loan.id)
     } catch {}
   }
 
-  const getUserDisplayName = (u: any) =>
-    u ? (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username) : '—'
+  const selectedAsset = availableAssets.find((asset) => asset.id === createForm.assetId)
+  const today = new Date().toISOString().slice(0, 10)
 
-  const getActionButtons = (loan: any) => {
-    switch (loan.status) {
-      case 'REQUESTED':
-        return (
-          <div className="space-y-3">
-            <textarea value={actionNotes} onChange={e => setActionNotes(e.target.value)}
-              placeholder="Notas (requerido para rechazo)..."
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 text-slate-800 dark:text-white" rows={2} />
-            <div className="flex gap-3">
-              <button onClick={() => handleAction('approve')}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/10">
-                <CheckCircle size={16} /> Aprobar
-              </button>
-              <button onClick={() => handleAction('reject')} disabled={!actionNotes.trim()}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-rose-500/10 disabled:opacity-50">
-                <XCircle size={16} /> Rechazar
-              </button>
-            </div>
-          </div>
-        )
-      case 'APPROVED':
-        return (
-          <div className="space-y-3">
-            <textarea value={actionNotes} onChange={e => setActionNotes(e.target.value)}
-              placeholder="Notas de entrega (opcional)..."
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 text-slate-800 dark:text-white" rows={2} />
-            <button onClick={() => handleAction('deliver')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-xl transition-all shadow-lg shadow-orange-500/10">
-              <Truck size={16} /> Registrar Entrega
-            </button>
-          </div>
-        )
-      case 'DELIVERED':
-        return (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Condición del activo</label>
-              <select value={returnCondition} onChange={e => setReturnCondition(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30">
-                <option value="GOOD">Buena condición</option>
-                <option value="DAMAGED">Con daños</option>
-                <option value="NEEDS_REPAIR">Requiere reparación</option>
-              </select>
-            </div>
-            <textarea value={actionNotes} onChange={e => setActionNotes(e.target.value)}
-              placeholder="Notas de devolución (opcional)..."
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 text-slate-800 dark:text-white" rows={2} />
-            <button onClick={() => handleAction('return')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/10">
-              <CornerDownLeft size={16} /> Registrar Devolución
-            </button>
-          </div>
-        )
-      default:
-        return null
-    }
-  }
+  const loanTitle = (loan: any) => `${loan.asset?.internalCode || '-'} - ${loan.asset?.brand || ''} ${loan.asset?.model || ''}`.trim()
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight italic uppercase">Préstamos de Activos</h2>
-          <p className="text-slate-500 dark:text-slate-400">Control del flujo de préstamos: solicitud → aprobación → entrega → devolución</p>
+          <h2 className="text-3xl font-black uppercase italic tracking-tight text-slate-800 dark:text-white">Prestamos de Activos</h2>
+          <p className="text-slate-500 dark:text-slate-400">Solicitud, aprobacion, entrega y devolucion de activos.</p>
         </div>
-        <button onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02]">
-          <Plus size={18} /> Solicitar Préstamo
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="flex items-center gap-2 rounded-2xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] hover:bg-[#e55a1d]"
+        >
+          <Plus size={18} />
+          Solicitar Prestamo
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm">
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-          className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 flex-1">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row">
+        <select
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value)
+            setOverdueFilter(false)
+          }}
+          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        >
           <option value="">Todos los estados</option>
           <option value="REQUESTED">Solicitado</option>
           <option value="APPROVED">Aprobado</option>
@@ -212,212 +228,251 @@ export default function Loans() {
           <option value="REJECTED">Rechazado</option>
         </select>
         <button
-          onClick={() => { setOverdueFilter(!overdueFilter); setPage(1) }}
-          className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center gap-2 ${
+          onClick={() => {
+            setOverdueFilter(!overdueFilter)
+            setStatusFilter('')
+          }}
+          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
             overdueFilter
-              ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/50'
-              : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-rose-300'
+              ? 'border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400'
+              : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-rose-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
           }`}
         >
-          <AlertTriangle size={14} /> Vencidos
+          <AlertTriangle size={14} />
+          Vencidos
         </button>
         {(statusFilter || overdueFilter) && (
-          <button onClick={() => { setStatusFilter(''); setOverdueFilter(false); setPage(1) }}
-            className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors flex items-center gap-1">
-            <X size={14} /> Limpiar
+          <button
+            onClick={() => {
+              setStatusFilter('')
+              setOverdueFilter(false)
+            }}
+            className="flex items-center gap-1 px-4 py-2.5 text-sm font-bold text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            <X size={14} />
+            Limpiar
           </button>
         )}
       </div>
 
-      {/* Content */}
       {loading && loans.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-[#FF6A23] border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Cargando préstamos...</p>
-          </div>
+        <div className="flex flex-col items-center justify-center gap-4 py-20">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#FF6A23] border-t-transparent" />
+          <p className="font-medium text-slate-500 dark:text-slate-400">Cargando prestamos...</p>
         </div>
       ) : loans.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 bg-orange-100 dark:bg-orange-950/30 rounded-full flex items-center justify-center text-[#FF6A23] mb-4">
+          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-orange-100 text-[#FF6A23] dark:bg-orange-950/30">
             <RefreshCw size={40} />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No hay préstamos</h3>
-          <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-6">
-            {statusFilter || overdueFilter ? 'No se encontraron préstamos con los filtros seleccionados.' : 'Solicita el primer préstamo de activo.'}
+          <h3 className="mb-2 text-xl font-bold text-slate-800 dark:text-white">No hay prestamos</h3>
+          <p className="max-w-sm text-slate-500 dark:text-slate-400">
+            {statusFilter || overdueFilter ? 'No se encontraron prestamos con los filtros seleccionados.' : 'Solicita el primer prestamo de activo.'}
           </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="text-left px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Activo</th>
-                  <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Estado</th>
-                  <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Usuario</th>
-                  <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Fecha Devolución</th>
-                  <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Alerta</th>
-                  <th className="text-right px-6 py-4"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.map((loan: any) => (
-                  <tr key={loan.id} onClick={() => openDetail(loan.id)}
-                    className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-800 dark:text-white group-hover:text-[#FF6A23] transition-colors">
-                        {loan.asset?.internalCode || '—'}
-                      </div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500">{loan.asset?.brand} {loan.asset?.model}</div>
-                    </td>
-                    <td className="px-4 py-4"><StatusBadge status={loan.status} /></td>
-                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{getUserDisplayName(loan.user)}</td>
-                    <td className="px-4 py-4 text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap">
-                      {new Date(loan.expectedReturnDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-4">
-                      {isOverdue(loan) && (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-500">
-                          <AlertTriangle size={12} /> Vencido
-                        </span>
-                      )}
-                      {isExpiringSoon(loan) && (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-500">
-                          <Clock size={12} /> Pronto
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <ArrowUpRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-[#FF6A23] transition-colors inline-block" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800">
-              <span className="text-sm text-slate-500 dark:text-slate-400">{total} préstamos en total</span>
-              <div className="flex items-center gap-2">
-                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <ChevronLeft size={16} />
-                </button>
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300 px-3">{page} / {totalPages}</span>
-                <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+        <>
+          <section>
+            <h3 className="mb-3 font-bold text-slate-800 dark:text-white">Prestamos abiertos</h3>
+            <div className="space-y-3">
+              {activeLoans.map((loan: any) => (
+                <div key={loan.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <button onClick={() => openDetail(loan.id)} className="min-w-0 flex-1 text-left">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-slate-800 transition-colors hover:text-[#FF6A23] dark:text-white">{loanTitle(loan)}</p>
+                      <StatusBadge loan={loan} />
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {getUserDisplayName(loan.user)} / devolucion {formatDateOnly(loan.expectedReturnDate)}
+                      {isExpiringSoon(loan) && ' / vence pronto'}
+                    </p>
+                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    {loan.status === 'REQUESTED' && (
+                      <>
+                        <button onClick={() => runAction(loan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
+                        <button onClick={() => runAction(loan, 'reject')} className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-600">Rechazar</button>
+                      </>
+                    )}
+                    {loan.status === 'APPROVED' && (
+                      <button onClick={() => runAction(loan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>
+                    )}
+                    {loan.status === 'DELIVERED' && (
+                      <button onClick={() => runAction(loan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {activeLoans.length === 0 && <p className="text-sm text-slate-400">No hay prestamos abiertos en este momento.</p>}
             </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 font-bold text-slate-800 dark:text-white">Ultimas devoluciones</h3>
+            <div className="space-y-2">
+              {returnedLoans.map((loan: any) => (
+                <button key={loan.id} onClick={() => openDetail(loan.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm dark:border-slate-800 dark:bg-slate-900">
+                  <span>
+                    <span className="font-medium text-slate-800 dark:text-white">{loanTitle(loan)}</span>
+                    {' / '}
+                    {getUserDisplayName(loan.user)}
+                    {' / devuelto el '}
+                    {formatDate(loan.actualReturnDate)}
+                  </span>
+                  <ArrowUpRight size={16} className="text-slate-300" />
+                </button>
+              ))}
+              {returnedLoans.length === 0 && <p className="text-sm text-slate-400">Aun no hay devoluciones registradas.</p>}
+            </div>
+          </section>
+
+          {rejectedLoans.length > 0 && (
+            <section>
+              <h3 className="mb-3 font-bold text-slate-800 dark:text-white">Solicitudes rechazadas</h3>
+              <div className="space-y-2">
+                {rejectedLoans.map((loan: any) => (
+                  <button key={loan.id} onClick={() => openDetail(loan.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm dark:border-slate-800 dark:bg-slate-900">
+                    <span>
+                      <span className="font-medium text-slate-800 dark:text-white">{loanTitle(loan)}</span>
+                      {' / '}
+                      {getUserDisplayName(loan.user)}
+                    </span>
+                    <StatusBadge status="REJECTED" />
+                  </button>
+                ))}
+              </div>
+            </section>
           )}
-        </div>
+        </>
       )}
 
-      {/* Create Modal */}
-      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Solicitar Préstamo">
+      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Solicitar Prestamo">
         <form onSubmit={handleCreate} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Activo *</label>
-            <select required value={createForm.assetId} onChange={e => setCreateForm(f => ({ ...f, assetId: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30">
-              <option value="">Seleccionar activo disponible...</option>
-              {availableAssets.map((a: any) => (
-                <option key={a.id} value={a.id}>{a.internalCode} — {a.brand} {a.model}</option>
+            <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Activo disponible *</label>
+            <select
+              required
+              value={createForm.assetId}
+              onChange={(event) => setCreateForm((form) => ({ ...form, assetId: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            >
+              <option value="">Activo disponible...</option>
+              {availableAssets.map((asset: any) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.internalCode} - {[asset.brand, asset.model].filter(Boolean).join(' / ') || 'sin referencia'}
+                </option>
+              ))}
+            </select>
+            {availableAssets.length === 0 && <p className="mt-2 text-xs text-amber-600">No hay activos disponibles para prestar.</p>}
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Solicitante *</label>
+            <select
+              required
+              value={createForm.userId}
+              onChange={(event) => setCreateForm((form) => ({ ...form, userId: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            >
+              <option value="">Solicitante...</option>
+              {users.map((user: any) => (
+                <option key={user.id} value={user.id}>
+                  {getUserDisplayName(user)}{user.email ? ` (${user.email})` : ''}
+                </option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Usuario *</label>
-            <select required value={createForm.userId} onChange={e => setCreateForm(f => ({ ...f, userId: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30">
-              <option value="">Seleccionar usuario...</option>
-              {users.map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
-            </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Fecha de entrega</label>
+              <input
+                disabled
+                value="Al aprobar y registrar entrega"
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Fecha esperada de devolucion *</label>
+              <input
+                required
+                type="date"
+                min={today}
+                value={createForm.expectedReturnDate}
+                onChange={(event) => setCreateForm((form) => ({ ...form, expectedReturnDate: event.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Fecha esperada de devolución *</label>
-            <input type="date" required value={createForm.expectedReturnDate}
-              onChange={e => setCreateForm(f => ({ ...f, expectedReturnDate: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Notas (opcional)</label>
-            <textarea rows={3} value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm resize-none text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30"
-              placeholder="Razón del préstamo..." />
-          </div>
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={() => setIsCreateOpen(false)} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all">Cancelar</button>
-            <button type="submit" disabled={loading} className="px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-xl shadow-lg shadow-orange-500/10 transition-all disabled:opacity-50">
-              Solicitar Préstamo
+          <input
+            placeholder="Observaciones"
+            value={createForm.notes}
+            onChange={(event) => setCreateForm((form) => ({ ...form, notes: event.target.value }))}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+          {selectedAsset && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Seleccionado: {selectedAsset.internalCode} / {selectedAsset.brand} {selectedAsset.model}
+            </p>
+          )}
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <button type="button" onClick={() => setIsCreateOpen(false)} className="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 transition-all hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancelar</button>
+            <button type="submit" disabled={loading || availableAssets.length === 0} className="rounded-xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/10 transition-all hover:bg-[#e55a1d] disabled:opacity-50">
+              Solicitar Prestamo
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Detail Modal */}
-      <Modal isOpen={!!selectedLoan} onClose={() => { setSelectedLoan(null); setActionNotes('') }} title="Detalle del Préstamo">
+      <Modal isOpen={!!selectedLoan} onClose={() => setSelectedLoan(null)} title="Detalle del Prestamo">
         {detailLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-10 h-10 border-4 border-[#FF6A23] border-t-transparent rounded-full animate-spin" />
+          <div className="flex justify-center py-12">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FF6A23] border-t-transparent" />
           </div>
         ) : selectedLoan ? (
           <div className="space-y-6">
-            <div className="flex items-center gap-3 flex-wrap">
-              <StatusBadge status={selectedLoan.status} />
-              {isOverdue(selectedLoan) && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50">
-                  <AlertTriangle size={12} /> VENCIDO
-                </span>
-              )}
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge loan={selectedLoan} />
+              {isExpiringSoon(selectedLoan) && <StatusBadge status="DELIVERED" />}
             </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid gap-4 text-sm sm:grid-cols-2">
               <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Package size={14} />
-                <span>Activo: <b className="text-slate-700 dark:text-slate-200">{selectedLoan.asset?.internalCode} — {selectedLoan.asset?.brand} {selectedLoan.asset?.model}</b></span>
+                <span>Activo: <b className="text-slate-700 dark:text-slate-200">{loanTitle(selectedLoan)}</b></span>
               </div>
               <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <User size={14} />
-                <span>Usuario: <b className="text-slate-700 dark:text-slate-200">{getUserDisplayName(selectedLoan.user)}</b></span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <User size={14} />
-                <span>Solicitado por: <b className="text-slate-700 dark:text-slate-200">{getUserDisplayName(selectedLoan.requestedBy)}</b></span>
+                <span>Solicitante: <b className="text-slate-700 dark:text-slate-200">{getUserDisplayName(selectedLoan.user)}</b></span>
               </div>
               <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Calendar size={14} />
-                <span>Devolución: <b className="text-slate-700 dark:text-slate-200">{new Date(selectedLoan.expectedReturnDate).toLocaleDateString('es-ES')}</b></span>
+                <span>Entrega: <b className="text-slate-700 dark:text-slate-200">{formatDate(selectedLoan.deliveryDate)}</b></span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                <Calendar size={14} />
+                <span>Devolucion esperada: <b className="text-slate-700 dark:text-slate-200">{formatDateOnly(selectedLoan.expectedReturnDate)}</b></span>
               </div>
             </div>
-
-            {selectedLoan.notes && (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
-                <p className="text-sm text-slate-600 dark:text-slate-300">{selectedLoan.notes}</p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            {getActionButtons(selectedLoan)}
-
-            {/* History */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <Clock size={16} className="text-[#FF6A23]" /> Historial ({selectedLoan.history?.length || 0})
+            {selectedLoan.notes && <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">{selectedLoan.notes}</p>}
+            <div className="flex flex-wrap gap-2">
+              {selectedLoan.status === 'REQUESTED' && (
+                <>
+                  <button onClick={() => runAction(selectedLoan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
+                  <button onClick={() => runAction(selectedLoan, 'reject')} className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-600">Rechazar</button>
+                </>
+              )}
+              {selectedLoan.status === 'APPROVED' && <button onClick={() => runAction(selectedLoan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>}
+              {selectedLoan.status === 'DELIVERED' && <button onClick={() => runAction(selectedLoan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>}
+            </div>
+            <div>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                <Clock size={16} className="text-[#FF6A23]" />
+                Historial
               </h4>
-              <div className="max-h-[200px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {(selectedLoan.history || []).map((h: any) => (
-                  <div key={h.id} className="flex gap-3 items-start text-sm pb-2 border-b border-slate-50 dark:border-slate-800 last:border-0">
-                    <div className="w-2 h-2 rounded-full bg-[#FF6A23] mt-2 shrink-0" />
-                    <div className="flex-1">
-                      <span className="font-bold text-slate-700 dark:text-slate-200">{h.action}</span>
-                      {h.notes && <span className="text-slate-500 dark:text-slate-400 ml-1">— {h.notes}</span>}
-                      <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                        {new Date(h.createdAt).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
+              <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
+                {(selectedLoan.history || []).map((item: any) => (
+                  <div key={item.id} className="border-b border-slate-50 pb-2 text-sm last:border-0 dark:border-slate-800">
+                    <p className="font-bold text-slate-700 dark:text-slate-200">{item.action}</p>
+                    {item.notes && <p className="text-slate-500 dark:text-slate-400">{item.notes}</p>}
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(item.createdAt)}</p>
                   </div>
                 ))}
               </div>
