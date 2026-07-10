@@ -48,8 +48,6 @@ describe('P0 security characterization', () => {
     await expect(strategy.validate({ sub: user.id })).rejects.toThrow();
   });
 
-  it.todo('scopes END_USER loans to owned resources and blocks workflow transitions');
-  it.todo('allows IT_SUPPORT to read/create loans but not transition workflow');
   it.todo('returns 404 when marking another user notification');
   it.todo('rejects unknown request fields through global validation');
 });

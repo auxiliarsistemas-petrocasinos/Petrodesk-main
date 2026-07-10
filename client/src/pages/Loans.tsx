@@ -119,7 +119,8 @@ export default function Loans() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [editingLoan, setEditingLoan] = useState<any>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [capabilities, setCapabilities] = useState({ canCreateForOthers: false, canManageWorkflow: false, canEdit: false, canDelete: false })
+  const isAdmin = capabilities.canEdit
   const [users, setUsers] = useState<any[]>([])
   const [availableAssets, setAvailableAssets] = useState<any[]>([])
   const [createForm, setCreateForm] = useState({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
@@ -130,7 +131,13 @@ export default function Loans() {
   const loadReferenceData = useCallback(() => {
     api.get('/users/options').then((data) => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/assets?status=AVAILABLE&pageSize=100').then((data) => setAvailableAssets(data.data || [])).catch(() => {})
-    api.get('/loans/permissions').then((data) => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
+    api.get('/loans/permissions').then((data) => {
+      setCapabilities(data)
+      if (!data?.canCreateForOthers) {
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+        setCreateForm((form) => ({ ...form, userId: currentUser.id || '' }))
+      }
+    }).catch(() => setCapabilities({ canCreateForOthers: false, canManageWorkflow: false, canEdit: false, canDelete: false }))
   }, [])
 
   const loadLoans = useCallback(() => {
@@ -385,16 +392,16 @@ export default function Loans() {
                       <button type="button" onClick={() => openEdit(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A23] dark:hover:bg-orange-950/30" title="Editar prestamo" aria-label={`Editar prestamo ${loanTitle(loan)}`}><Pencil size={17} /></button>
                       <button type="button" disabled={deletingId === loan.id || ['APPROVED', 'DELIVERED'].includes(loan.status)} onClick={() => handleDelete(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/30" title={['APPROVED', 'DELIVERED'].includes(loan.status) ? 'Finalice o rechace el prestamo antes de eliminarlo' : 'Eliminar prestamo'} aria-label={`Eliminar prestamo ${loanTitle(loan)}`}><Trash2 size={17} /></button>
                     </>}
-                    {loan.status === 'REQUESTED' && (
+                    {capabilities.canManageWorkflow && loan.status === 'REQUESTED' && (
                       <>
                         <button onClick={() => runAction(loan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
                         <button onClick={() => openActionModal(loan, 'reject')} className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-600">Rechazar</button>
                       </>
                     )}
-                    {loan.status === 'APPROVED' && (
+                    {capabilities.canManageWorkflow && loan.status === 'APPROVED' && (
                       <button onClick={() => openActionModal(loan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>
                     )}
-                    {loan.status === 'DELIVERED' && (
+                    {capabilities.canManageWorkflow && loan.status === 'DELIVERED' && (
                       <button onClick={() => openActionModal(loan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>
                     )}
                   </div>
@@ -616,14 +623,14 @@ export default function Loans() {
                 <button type="button" onClick={() => openEdit(selectedLoan)} className="flex items-center gap-2 rounded-lg bg-orange-50 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:bg-orange-100 dark:bg-orange-950/30"><Pencil size={15} /> Editar</button>
                 <button type="button" disabled={deletingId === selectedLoan.id || ['APPROVED', 'DELIVERED'].includes(selectedLoan.status)} onClick={() => handleDelete(selectedLoan)} className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-red-950/30" title={['APPROVED', 'DELIVERED'].includes(selectedLoan.status) ? 'Finalice o rechace el prestamo antes de eliminarlo' : 'Eliminar prestamo'}><Trash2 size={15} /> Eliminar</button>
               </>}
-              {selectedLoan.status === 'REQUESTED' && (
+              {capabilities.canManageWorkflow && selectedLoan.status === 'REQUESTED' && (
                 <>
                   <button onClick={() => runAction(selectedLoan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
                   <button onClick={() => openActionModal(selectedLoan, 'reject')} className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-600">Rechazar</button>
                 </>
               )}
-              {selectedLoan.status === 'APPROVED' && <button onClick={() => openActionModal(selectedLoan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>}
-              {selectedLoan.status === 'DELIVERED' && <button onClick={() => openActionModal(selectedLoan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>}
+              {capabilities.canManageWorkflow && selectedLoan.status === 'APPROVED' && <button onClick={() => openActionModal(selectedLoan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>}
+              {capabilities.canManageWorkflow && selectedLoan.status === 'DELIVERED' && <button onClick={() => openActionModal(selectedLoan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>}
             </div>
             <div>
               <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
