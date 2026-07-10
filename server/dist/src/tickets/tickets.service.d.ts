@@ -36,7 +36,7 @@ export declare class TicketsService {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
             createdBy: {
                 id: string;
@@ -44,7 +44,7 @@ export declare class TicketsService {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
         } & {
             id: string;
@@ -53,10 +53,10 @@ export declare class TicketsService {
             assignedToId: string | null;
             createdById: string;
             description: string;
-            status: import(".prisma/client").$Enums.TicketStatus;
+            status: import("@prisma/client").$Enums.TicketStatus;
             fieldId: string | null;
             title: string;
-            priority: import(".prisma/client").$Enums.TicketPriority;
+            priority: import("@prisma/client").$Enums.TicketPriority;
         })[];
         total: number;
         page: number;
@@ -84,7 +84,7 @@ export declare class TicketsService {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
         comments: ({
             user: {
@@ -93,7 +93,7 @@ export declare class TicketsService {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
         } & {
             id: string;
@@ -119,7 +119,7 @@ export declare class TicketsService {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
         } & {
             id: string;
@@ -136,7 +136,7 @@ export declare class TicketsService {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
     } & {
         id: string;
@@ -145,10 +145,10 @@ export declare class TicketsService {
         assignedToId: string | null;
         createdById: string;
         description: string;
-        status: import(".prisma/client").$Enums.TicketStatus;
+        status: import("@prisma/client").$Enums.TicketStatus;
         fieldId: string | null;
         title: string;
-        priority: import(".prisma/client").$Enums.TicketPriority;
+        priority: import("@prisma/client").$Enums.TicketPriority;
     }>;
     update(id: string, data: any, userId: string): Promise<Ticket>;
     assign(ticketId: string, assignedToId: string, userId: string): Promise<{
@@ -172,7 +172,7 @@ export declare class TicketsService {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
         createdBy: {
             id: string;
@@ -180,7 +180,7 @@ export declare class TicketsService {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
     } & {
         id: string;
@@ -189,10 +189,10 @@ export declare class TicketsService {
         assignedToId: string | null;
         createdById: string;
         description: string;
-        status: import(".prisma/client").$Enums.TicketStatus;
+        status: import("@prisma/client").$Enums.TicketStatus;
         fieldId: string | null;
         title: string;
-        priority: import(".prisma/client").$Enums.TicketPriority;
+        priority: import("@prisma/client").$Enums.TicketPriority;
     }>;
     addComment(ticketId: string, userId: string, comment: string): Promise<{
         user: {
@@ -201,7 +201,7 @@ export declare class TicketsService {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
     } & {
         id: string;
@@ -218,7 +218,7 @@ export declare class TicketsService {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
     } & {
         id: string;

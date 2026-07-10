@@ -11,7 +11,7 @@ export declare class UsersController {
         firstName: string | null;
         lastName: string | null;
         phoneNumber: string | null;
-        role: import(".prisma/client").$Enums.Role;
+        role: import("@prisma/client").$Enums.Role;
         mustChangePassword: boolean;
         isActive: boolean;
         createdAt: Date;
@@ -25,7 +25,7 @@ export declare class UsersController {
         firstName: string | null;
         lastName: string | null;
         phoneNumber: string | null;
-        role: import(".prisma/client").$Enums.Role;
+        role: import("@prisma/client").$Enums.Role;
         mustChangePassword: boolean;
         isActive: boolean;
         createdAt: Date;
@@ -39,7 +39,7 @@ export declare class UsersController {
         firstName: string | null;
         lastName: string | null;
         phoneNumber: string | null;
-        role: import(".prisma/client").$Enums.Role;
+        role: import("@prisma/client").$Enums.Role;
         mustChangePassword: boolean;
         isActive: boolean;
         createdAt: Date;
@@ -53,7 +53,7 @@ export declare class UsersController {
         firstName: string | null;
         lastName: string | null;
         phoneNumber: string | null;
-        role: import(".prisma/client").$Enums.Role;
+        role: import("@prisma/client").$Enums.Role;
         mustChangePassword: boolean;
         isActive: boolean;
         createdAt: Date;
@@ -67,7 +67,7 @@ export declare class UsersController {
         firstName: string | null;
         lastName: string | null;
         phoneNumber: string | null;
-        role: import(".prisma/client").$Enums.Role;
+        role: import("@prisma/client").$Enums.Role;
         mustChangePassword: boolean;
         isActive: boolean;
         createdAt: Date;

@@ -20,22 +20,70 @@ const userSelect = {
     lastName: true,
     role: true,
 };
+const assetFormFields = [
+    'equipmentType',
+    'operatingSystem',
+    'ram',
+    'ssdStorage',
+    'hddStorage',
+    'screenSize',
+    'antivirus',
+];
 let AssetsService = class AssetsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async onModuleInit() {
+        await this.ensureAssetFormColumns();
+    }
+    async ensureAssetFormColumns() {
+        await this.prisma.$executeRawUnsafe(`
+      ALTER TABLE "Asset"
+      ADD COLUMN IF NOT EXISTS "equipmentType" TEXT,
+      ADD COLUMN IF NOT EXISTS "operatingSystem" TEXT,
+      ADD COLUMN IF NOT EXISTS "processor" TEXT,
+      ADD COLUMN IF NOT EXISTS "ram" TEXT,
+      ADD COLUMN IF NOT EXISTS "ssdStorage" TEXT,
+      ADD COLUMN IF NOT EXISTS "hddStorage" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenCode" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenBrand" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenSerial" TEXT,
+      ADD COLUMN IF NOT EXISTS "screenSize" TEXT,
+      ADD COLUMN IF NOT EXISTS "antivirus" TEXT,
+      ADD COLUMN IF NOT EXISTS "observations" TEXT;
+    `);
+    }
+    optional(value) {
+        return typeof value === 'string' && value.trim() === '' ? null : value;
+    }
     async create(data, userId) {
+        const internalCode = data.internalCode || `ACT-${Date.now()}`;
+        const assetData = {
+            internalCode,
+            serial: data.serial,
+            brand: data.brand,
+            model: data.model,
+            equipmentType: this.optional(data.equipmentType),
+            operatingSystem: this.optional(data.operatingSystem),
+            processor: this.optional(data.processor),
+            ram: this.optional(data.ram),
+            ssdStorage: this.optional(data.ssdStorage),
+            hddStorage: this.optional(data.hddStorage),
+            screenCode: this.optional(data.screenCode),
+            screenBrand: this.optional(data.screenBrand),
+            screenSerial: this.optional(data.screenSerial),
+            screenSize: this.optional(data.screenSize),
+            antivirus: this.optional(data.antivirus),
+            observations: this.optional(data.observations),
+            status: data.status || 'AVAILABLE',
+            imagePath: data.imagePath,
+        };
+        if (data.assignedUserId)
+            assetData.assignedUser = { connect: { id: data.assignedUserId } };
+        if (data.fieldId)
+            assetData.field = { connect: { id: data.fieldId } };
         const asset = await this.prisma.asset.create({
-            data: {
-                internalCode: data.internalCode,
-                serial: data.serial,
-                brand: data.brand,
-                model: data.model,
-                status: data.status || 'AVAILABLE',
-                imagePath: data.imagePath,
-                ...(data.assignedUserId && { assignedUser: { connect: { id: data.assignedUserId } } }),
-                ...(data.fieldId && { field: { connect: { id: data.fieldId } } }),
-            },
+            data: assetData,
             include: { assignedUser: { select: userSelect }, field: true },
         });
         await this.prisma.assetHistory.create({
@@ -59,6 +107,10 @@ let AssetsService = class AssetsService {
                 { serial: { contains: filters.search, mode: 'insensitive' } },
                 { brand: { contains: filters.search, mode: 'insensitive' } },
                 { model: { contains: filters.search, mode: 'insensitive' } },
+                { equipmentType: { contains: filters.search, mode: 'insensitive' } },
+                { operatingSystem: { contains: filters.search, mode: 'insensitive' } },
+                { screenCode: { contains: filters.search, mode: 'insensitive' } },
+                { screenSerial: { contains: filters.search, mode: 'insensitive' } },
             ];
         }
         const page = filters.page || 1;
@@ -94,6 +146,30 @@ let AssetsService = class AssetsService {
             throw new common_1.NotFoundException('Activo no encontrado');
         return asset;
     }
+    async getFormOptions() {
+        const assets = await this.prisma.asset.findMany({
+            select: {
+                brand: true,
+                screenBrand: true,
+                equipmentType: true,
+                operatingSystem: true,
+                ram: true,
+                ssdStorage: true,
+                hddStorage: true,
+                screenSize: true,
+                antivirus: true,
+            },
+        });
+        const unique = (values) => [...new Set(values.filter((value) => Boolean(value?.trim())).map((value) => value.trim()))].sort((a, b) => a.localeCompare(b));
+        return {
+            brand: unique(assets.map((asset) => asset.brand)),
+            screenBrand: unique(assets.map((asset) => asset.screenBrand)),
+            ...assetFormFields.reduce((acc, field) => {
+                acc[field] = unique(assets.map((asset) => asset[field]));
+                return acc;
+            }, {}),
+        };
+    }
     async update(id, data, userId) {
         const current = await this.prisma.asset.findUnique({ where: { id } });
         if (!current)
@@ -107,12 +183,25 @@ let AssetsService = class AssetsService {
             updateData.brand = data.brand;
         if (data.model)
             updateData.model = data.model;
+        assetFormFields.forEach((field) => {
+            if (data[field] !== undefined)
+                updateData[field] = data[field] || null;
+        });
+        ['processor', 'screenCode', 'screenBrand', 'screenSerial', 'observations'].forEach((field) => {
+            if (data[field] !== undefined)
+                updateData[field] = data[field] || null;
+        });
         if (data.imagePath !== undefined)
             updateData.imagePath = data.imagePath;
         if (data.status)
             updateData.status = data.status;
         if (data.fieldId !== undefined) {
             updateData.field = data.fieldId ? { connect: { id: data.fieldId } } : { disconnect: true };
+        }
+        if (data.assignedUserId !== undefined) {
+            updateData.assignedUser = data.assignedUserId
+                ? { connect: { id: data.assignedUserId } }
+                : { disconnect: true };
         }
         const asset = await this.prisma.asset.update({
             where: { id },
@@ -125,6 +214,22 @@ let AssetsService = class AssetsService {
             });
         }
         return asset;
+    }
+    async remove(id) {
+        const asset = await this.prisma.asset.findUnique({
+            where: { id },
+            select: { id: true, internalCode: true, _count: { select: { loans: true } } },
+        });
+        if (!asset)
+            throw new common_1.NotFoundException('Activo no encontrado');
+        if (asset._count.loans > 0) {
+            throw new common_1.ConflictException('No se puede eliminar un activo con prestamos asociados.');
+        }
+        await this.prisma.$transaction([
+            this.prisma.assetHistory.deleteMany({ where: { assetId: id } }),
+            this.prisma.asset.delete({ where: { id } }),
+        ]);
+        return { message: `Activo ${asset.internalCode} eliminado correctamente` };
     }
     async assign(assetId, data, userId) {
         const current = await this.prisma.asset.findUnique({ where: { id: assetId } });

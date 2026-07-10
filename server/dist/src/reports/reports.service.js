@@ -17,6 +17,13 @@ let ReportsService = class ReportsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    countMap(groups, key) {
+        return groups.reduce((acc, group) => {
+            const name = String(group[key]);
+            acc[name] = group._count.id;
+            return acc;
+        }, {});
+    }
     async generateTicketsCsv() {
         const tickets = await this.prisma.ticket.findMany({
             include: { createdBy: true, assignedTo: true, field: true }
@@ -112,8 +119,8 @@ let ReportsService = class ReportsService {
         }));
         return {
             total,
-            byStatus: statusGroups.map(sg => ({ name: sg.status, value: sg._count.id })),
-            byPriority: priorityGroups.map(pg => ({ name: pg.priority, value: pg._count.id })),
+            byStatus: this.countMap(statusGroups, 'status'),
+            byPriority: this.countMap(priorityGroups, 'priority'),
             byField: resolvedFieldGroups,
         };
     }
@@ -131,13 +138,14 @@ let ReportsService = class ReportsService {
         ]);
         return {
             total,
-            byStatus: statusGroups.map(sg => ({ name: sg.status, value: sg._count.id })),
+            byStatus: this.countMap(statusGroups, 'status'),
             byBrand: brandGroups.map(bg => ({ name: bg.brand, count: bg._count.id })),
         };
     }
     async getLoansSummary() {
         const now = new Date();
-        const [statusGroups, overdueCount, total] = await Promise.all([
+        const in72h = new Date(now.getTime() + 72 * 60 * 60 * 1000);
+        const [statusGroups, overdue, expiringSoon, total] = await Promise.all([
             this.prisma.loan.groupBy({
                 by: ['status'],
                 _count: { id: true }
@@ -148,12 +156,19 @@ let ReportsService = class ReportsService {
                     expectedReturnDate: { lt: now }
                 }
             }),
+            this.prisma.loan.count({
+                where: {
+                    status: 'DELIVERED',
+                    expectedReturnDate: { gte: now, lte: in72h }
+                }
+            }),
             this.prisma.loan.count()
         ]);
         return {
             total,
-            byStatus: statusGroups.map(sg => ({ name: sg.status, value: sg._count.id })),
-            overdueCount,
+            byStatus: this.countMap(statusGroups, 'status'),
+            overdue,
+            expiringSoon,
         };
     }
 };

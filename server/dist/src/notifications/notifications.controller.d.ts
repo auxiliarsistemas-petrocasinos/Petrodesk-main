@@ -21,5 +21,5 @@ export declare class NotificationsController {
         message: string;
         readAt: Date | null;
     }>;
-    markAllAsRead(req: any): Promise<import(".prisma/client").Prisma.BatchPayload>;
+    markAllAsRead(req: any): Promise<import("@prisma/client").Prisma.BatchPayload>;
 }

@@ -56,8 +56,16 @@ let UsersService = class UsersService {
             orderBy: { createdAt: 'desc' }
         });
     }
-    async findOne(username) {
-        return this.prisma.user.findUnique({ where: { username: username.toLowerCase() } });
+    async findOne(usernameOrEmail) {
+        const identifier = usernameOrEmail.toLowerCase();
+        return this.prisma.user.findFirst({
+            where: {
+                OR: [
+                    { username: identifier },
+                    { email: identifier },
+                ],
+            },
+        });
     }
     async findById(id) {
         return this.prisma.user.findUnique({ where: { id } });

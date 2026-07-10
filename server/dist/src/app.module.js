@@ -20,13 +20,14 @@ const reports_module_1 = require("./reports/reports.module");
 const visits_module_1 = require("./visits/visits.module");
 const supabase_module_1 = require("./supabase.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
+const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [prisma_module_1.PrismaModule, auth_module_1.AuthModule, users_module_1.UsersModule, tickets_module_1.TicketsModule, assets_module_1.AssetsModule, fields_module_1.FieldsModule, loans_module_1.LoansModule, notifications_module_1.NotificationsModule, reports_module_1.ReportsModule, visits_module_1.VisitsModule, supabase_module_1.SupabaseModule, dashboard_module_1.DashboardModule],
-        controllers: [],
+        controllers: [app_controller_1.AppController],
         providers: [],
     })
 ], AppModule);

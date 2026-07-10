@@ -9,7 +9,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;
@@ -26,7 +26,7 @@ export declare class LoansController {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
             asset: {
                 id: string;
@@ -36,7 +36,19 @@ export declare class LoansController {
                 serial: string;
                 brand: string;
                 model: string;
-                status: import(".prisma/client").$Enums.AssetStatus;
+                equipmentType: string | null;
+                operatingSystem: string | null;
+                processor: string | null;
+                ram: string | null;
+                ssdStorage: string | null;
+                hddStorage: string | null;
+                screenCode: string | null;
+                screenBrand: string | null;
+                screenSerial: string | null;
+                screenSize: string | null;
+                antivirus: string | null;
+                observations: string | null;
+                status: import("@prisma/client").$Enums.AssetStatus;
                 assignedUserId: string | null;
                 fieldId: string | null;
                 imagePath: string | null;
@@ -47,7 +59,7 @@ export declare class LoansController {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
             requestedBy: {
                 id: string;
@@ -55,7 +67,7 @@ export declare class LoansController {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
         } & {
             id: string;
@@ -64,7 +76,7 @@ export declare class LoansController {
             approvedById: string | null;
             userId: string;
             requestedById: string;
-            status: import(".prisma/client").$Enums.LoanStatus;
+            status: import("@prisma/client").$Enums.LoanStatus;
             notes: string | null;
             assetId: string;
             deliveryDate: Date | null;
@@ -85,7 +97,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;
@@ -101,7 +113,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;
@@ -117,7 +129,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;
@@ -133,7 +145,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;
@@ -149,7 +161,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;
@@ -165,7 +177,7 @@ export declare class LoansController {
         approvedById: string | null;
         userId: string;
         requestedById: string;
-        status: import(".prisma/client").$Enums.LoanStatus;
+        status: import("@prisma/client").$Enums.LoanStatus;
         notes: string | null;
         assetId: string;
         deliveryDate: Date | null;

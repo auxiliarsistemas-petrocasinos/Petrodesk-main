@@ -20,7 +20,13 @@ let AssetsController = class AssetsController {
     constructor(assetsService) {
         this.assetsService = assetsService;
     }
+    requireAdmin(req) {
+        if (req.user?.role !== 'ADMIN') {
+            throw new common_1.ForbiddenException('Solo los administradores pueden administrar el inventario.');
+        }
+    }
     create(createAssetDto, req) {
+        this.requireAdmin(req);
         return this.assetsService.create(createAssetDto, req.user.id);
     }
     findAll(status, brand, fieldId, assignedUserId, search, page, pageSize) {
@@ -34,19 +40,33 @@ let AssetsController = class AssetsController {
             pageSize: pageSize ? parseInt(pageSize) : undefined,
         });
     }
+    getFormOptions() {
+        return this.assetsService.getFormOptions();
+    }
+    getPermissions(req) {
+        return { canManage: req.user?.role === 'ADMIN' };
+    }
     findOne(id) {
         return this.assetsService.findOne(id);
     }
     update(id, updateAssetDto, req) {
+        this.requireAdmin(req);
         return this.assetsService.update(id, updateAssetDto, req.user.id);
     }
     assign(id, body, req) {
+        this.requireAdmin(req);
         return this.assetsService.assign(id, body, req.user.id);
     }
     changeStatus(id, status, req) {
+        this.requireAdmin(req);
         return this.assetsService.changeStatus(id, status, req.user.id);
     }
+    remove(id, req) {
+        this.requireAdmin(req);
+        return this.assetsService.remove(id);
+    }
     addHistory(id, body, req) {
+        this.requireAdmin(req);
         return this.assetsService.addHistory(id, req.user.id, body.action, body.notes);
     }
 };
@@ -72,6 +92,19 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('form-options'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AssetsController.prototype, "getFormOptions", null);
+__decorate([
+    (0, common_1.Get)('permissions'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AssetsController.prototype, "getPermissions", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
@@ -106,6 +139,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "changeStatus", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AssetsController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)(':id/history'),
     __param(0, (0, common_1.Param)('id')),

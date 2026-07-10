@@ -2,6 +2,7 @@ import { AssetsService } from './assets.service';
 export declare class AssetsController {
     private readonly assetsService;
     constructor(assetsService: AssetsService);
+    private requireAdmin;
     create(createAssetDto: any, req: any): Promise<{
         id: string;
         createdAt: Date;
@@ -10,7 +11,19 @@ export declare class AssetsController {
         serial: string;
         brand: string;
         model: string;
-        status: import(".prisma/client").$Enums.AssetStatus;
+        equipmentType: string | null;
+        operatingSystem: string | null;
+        processor: string | null;
+        ram: string | null;
+        ssdStorage: string | null;
+        hddStorage: string | null;
+        screenCode: string | null;
+        screenBrand: string | null;
+        screenSerial: string | null;
+        screenSize: string | null;
+        antivirus: string | null;
+        observations: string | null;
+        status: import("@prisma/client").$Enums.AssetStatus;
         assignedUserId: string | null;
         fieldId: string | null;
         imagePath: string | null;
@@ -37,7 +50,7 @@ export declare class AssetsController {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
         } & {
             id: string;
@@ -47,7 +60,19 @@ export declare class AssetsController {
             serial: string;
             brand: string;
             model: string;
-            status: import(".prisma/client").$Enums.AssetStatus;
+            equipmentType: string | null;
+            operatingSystem: string | null;
+            processor: string | null;
+            ram: string | null;
+            ssdStorage: string | null;
+            hddStorage: string | null;
+            screenCode: string | null;
+            screenBrand: string | null;
+            screenSerial: string | null;
+            screenSize: string | null;
+            antivirus: string | null;
+            observations: string | null;
+            status: import("@prisma/client").$Enums.AssetStatus;
             assignedUserId: string | null;
             fieldId: string | null;
             imagePath: string | null;
@@ -57,6 +82,13 @@ export declare class AssetsController {
         pageSize: number;
         totalPages: number;
     }>;
+    getFormOptions(): Promise<{
+        brand: string[];
+        screenBrand: string[];
+    }>;
+    getPermissions(req: any): {
+        canManage: boolean;
+    };
     findOne(id: string): Promise<{
         field: {
             id: string;
@@ -78,7 +110,7 @@ export declare class AssetsController {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
         history: ({
             user: {
@@ -87,7 +119,7 @@ export declare class AssetsController {
                 username: string;
                 firstName: string;
                 lastName: string;
-                role: import(".prisma/client").$Enums.Role;
+                role: import("@prisma/client").$Enums.Role;
             };
         } & {
             id: string;
@@ -105,7 +137,19 @@ export declare class AssetsController {
         serial: string;
         brand: string;
         model: string;
-        status: import(".prisma/client").$Enums.AssetStatus;
+        equipmentType: string | null;
+        operatingSystem: string | null;
+        processor: string | null;
+        ram: string | null;
+        ssdStorage: string | null;
+        hddStorage: string | null;
+        screenCode: string | null;
+        screenBrand: string | null;
+        screenSerial: string | null;
+        screenSize: string | null;
+        antivirus: string | null;
+        observations: string | null;
+        status: import("@prisma/client").$Enums.AssetStatus;
         assignedUserId: string | null;
         fieldId: string | null;
         imagePath: string | null;
@@ -118,7 +162,19 @@ export declare class AssetsController {
         serial: string;
         brand: string;
         model: string;
-        status: import(".prisma/client").$Enums.AssetStatus;
+        equipmentType: string | null;
+        operatingSystem: string | null;
+        processor: string | null;
+        ram: string | null;
+        ssdStorage: string | null;
+        hddStorage: string | null;
+        screenCode: string | null;
+        screenBrand: string | null;
+        screenSerial: string | null;
+        screenSize: string | null;
+        antivirus: string | null;
+        observations: string | null;
+        status: import("@prisma/client").$Enums.AssetStatus;
         assignedUserId: string | null;
         fieldId: string | null;
         imagePath: string | null;
@@ -147,7 +203,7 @@ export declare class AssetsController {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
     } & {
         id: string;
@@ -157,7 +213,19 @@ export declare class AssetsController {
         serial: string;
         brand: string;
         model: string;
-        status: import(".prisma/client").$Enums.AssetStatus;
+        equipmentType: string | null;
+        operatingSystem: string | null;
+        processor: string | null;
+        ram: string | null;
+        ssdStorage: string | null;
+        hddStorage: string | null;
+        screenCode: string | null;
+        screenBrand: string | null;
+        screenSerial: string | null;
+        screenSize: string | null;
+        antivirus: string | null;
+        observations: string | null;
+        status: import("@prisma/client").$Enums.AssetStatus;
         assignedUserId: string | null;
         fieldId: string | null;
         imagePath: string | null;
@@ -183,7 +251,7 @@ export declare class AssetsController {
             username: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.Role;
+            role: import("@prisma/client").$Enums.Role;
         };
     } & {
         id: string;
@@ -193,10 +261,25 @@ export declare class AssetsController {
         serial: string;
         brand: string;
         model: string;
-        status: import(".prisma/client").$Enums.AssetStatus;
+        equipmentType: string | null;
+        operatingSystem: string | null;
+        processor: string | null;
+        ram: string | null;
+        ssdStorage: string | null;
+        hddStorage: string | null;
+        screenCode: string | null;
+        screenBrand: string | null;
+        screenSerial: string | null;
+        screenSize: string | null;
+        antivirus: string | null;
+        observations: string | null;
+        status: import("@prisma/client").$Enums.AssetStatus;
         assignedUserId: string | null;
         fieldId: string | null;
         imagePath: string | null;
+    }>;
+    remove(id: string, req: any): Promise<{
+        message: string;
     }>;
     addHistory(id: string, body: {
         action: string;

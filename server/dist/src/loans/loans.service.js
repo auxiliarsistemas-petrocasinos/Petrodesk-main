@@ -25,20 +25,48 @@ let LoansService = class LoansService {
         this.prisma = prisma;
     }
     async create(data, requestedById) {
+        if (!data.assetId)
+            throw new common_1.BadRequestException('Debe seleccionar un activo');
+        if (!data.userId)
+            throw new common_1.BadRequestException('Debe seleccionar un solicitante');
+        if (!data.expectedReturnDate)
+            throw new common_1.BadRequestException('Debe indicar la fecha esperada de devolucion');
+        if (!data.notes?.trim())
+            throw new common_1.BadRequestException('Debe diligenciar los comentarios');
+        const expectedReturnDate = new Date(data.expectedReturnDate);
+        if (Number.isNaN(expectedReturnDate.getTime())) {
+            throw new common_1.BadRequestException('La fecha esperada de devolucion no es valida');
+        }
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        if (expectedReturnDate < startOfToday) {
+            throw new common_1.BadRequestException('La fecha esperada de devolucion no puede estar en el pasado');
+        }
         const asset = await this.prisma.asset.findUnique({ where: { id: data.assetId } });
         if (!asset)
             throw new common_1.NotFoundException('Activo no encontrado');
         if (asset.status !== 'AVAILABLE') {
-            throw new common_1.BadRequestException('El activo no está disponible para préstamo');
+            throw new common_1.BadRequestException('El activo no esta disponible para prestamo');
         }
+        const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
+        if (!user || !user.isActive)
+            throw new common_1.NotFoundException('Solicitante no encontrado o inactivo');
+        const activeLoan = await this.prisma.loan.findFirst({
+            where: {
+                assetId: data.assetId,
+                status: { in: ['REQUESTED', 'APPROVED', 'DELIVERED'] },
+            },
+        });
+        if (activeLoan)
+            throw new common_1.BadRequestException('El activo ya tiene un prestamo abierto');
         const loan = await this.prisma.loan.create({
             data: {
                 asset: { connect: { id: data.assetId } },
                 user: { connect: { id: data.userId } },
                 requestedBy: { connect: { id: requestedById } },
-                expectedReturnDate: new Date(data.expectedReturnDate),
+                expectedReturnDate,
                 status: 'REQUESTED',
-                notes: data.notes,
+                notes: data.notes?.trim() || null,
             },
             include: { asset: true, user: { select: userSelect }, requestedBy: { select: userSelect } },
         });
@@ -46,7 +74,7 @@ let LoansService = class LoansService {
             data: {
                 loanId: loan.id,
                 action: 'REQUESTED',
-                notes: `Préstamo solicitado por ${loan.requestedBy.username} para el usuario ${loan.user.username}`,
+                notes: `Prestamo solicitado por ${loan.requestedBy.username} para el usuario ${loan.user.username}`,
             },
         });
         return loan;
@@ -94,18 +122,21 @@ let LoansService = class LoansService {
             },
         });
         if (!loan)
-            throw new common_1.NotFoundException('Préstamo no encontrado');
+            throw new common_1.NotFoundException('Prestamo no encontrado');
         return loan;
     }
     async update(id, data) {
         return this.prisma.loan.update({ where: { id }, data });
     }
     async approve(id, approvedById) {
-        const loan = await this.prisma.loan.findUnique({ where: { id } });
+        const loan = await this.prisma.loan.findUnique({ where: { id }, include: { asset: true } });
         if (!loan)
-            throw new common_1.NotFoundException('Préstamo no encontrado');
+            throw new common_1.NotFoundException('Prestamo no encontrado');
         if (loan.status !== 'REQUESTED') {
-            throw new common_1.BadRequestException('El préstamo no está en estado SOLICITADO');
+            throw new common_1.BadRequestException('El prestamo no esta en estado SOLICITADO');
+        }
+        if (loan.asset.status !== 'AVAILABLE') {
+            throw new common_1.BadRequestException('El activo ya no esta disponible para aprobar este prestamo');
         }
         const updated = await this.prisma.loan.update({
             where: { id },
@@ -119,14 +150,14 @@ let LoansService = class LoansService {
             data: {
                 loanId: id,
                 action: 'APPROVED',
-                notes: `Préstamo aprobado`,
+                notes: 'Prestamo aprobado',
             },
         });
         await this.prisma.notification.create({
             data: {
                 userId: loan.userId,
                 type: 'LOAN_APPROVED',
-                message: `Tu solicitud de préstamo del activo ${updated.asset.internalCode} ha sido aprobada`,
+                message: `Tu solicitud de prestamo del activo ${updated.asset.internalCode} ha sido aprobada`,
             },
         });
         return updated;
@@ -134,16 +165,19 @@ let LoansService = class LoansService {
     async reject(id, approvedById, notes) {
         const loan = await this.prisma.loan.findUnique({ where: { id } });
         if (!loan)
-            throw new common_1.NotFoundException('Préstamo no encontrado');
+            throw new common_1.NotFoundException('Prestamo no encontrado');
         if (loan.status !== 'REQUESTED' && loan.status !== 'APPROVED') {
-            throw new common_1.BadRequestException('El préstamo no se puede rechazar en este estado');
+            throw new common_1.BadRequestException('El prestamo no se puede rechazar en este estado');
         }
+        const cleanNotes = notes?.trim();
+        if (!cleanNotes)
+            throw new common_1.BadRequestException('Debe diligenciar los comentarios del rechazo');
         const updated = await this.prisma.loan.update({
             where: { id },
             data: {
                 status: 'REJECTED',
                 approvedBy: { connect: { id: approvedById } },
-                notes: notes || loan.notes,
+                notes: cleanNotes || loan.notes,
             },
             include: { asset: true, user: { select: userSelect } },
         });
@@ -151,25 +185,31 @@ let LoansService = class LoansService {
             data: {
                 loanId: id,
                 action: 'REJECTED',
-                notes: notes ? `Préstamo rechazado. Motivo: ${notes}` : 'Préstamo rechazado',
+                notes: cleanNotes ? `Prestamo rechazado. Motivo: ${cleanNotes}` : 'Prestamo rechazado',
             },
         });
         await this.prisma.notification.create({
             data: {
                 userId: loan.userId,
                 type: 'LOAN_REJECTED',
-                message: `Tu solicitud de préstamo del activo ${updated.asset.internalCode} ha sido rechazada`,
+                message: `Tu solicitud de prestamo del activo ${updated.asset.internalCode} ha sido rechazada`,
             },
         });
         return updated;
     }
     async deliver(id, deliveryNotes) {
-        const loan = await this.prisma.loan.findUnique({ where: { id } });
+        const loan = await this.prisma.loan.findUnique({ where: { id }, include: { asset: true } });
         if (!loan)
-            throw new common_1.NotFoundException('Préstamo no encontrado');
+            throw new common_1.NotFoundException('Prestamo no encontrado');
         if (loan.status !== 'APPROVED') {
-            throw new common_1.BadRequestException('El préstamo debe estar aprobado antes de entregarse');
+            throw new common_1.BadRequestException('El prestamo debe estar aprobado antes de entregarse');
         }
+        if (loan.asset.status !== 'AVAILABLE') {
+            throw new common_1.BadRequestException('El activo ya no esta disponible para entrega');
+        }
+        const cleanNotes = deliveryNotes?.trim();
+        if (!cleanNotes)
+            throw new common_1.BadRequestException('Debe diligenciar los comentarios de entrega');
         const [updated] = await this.prisma.$transaction([
             this.prisma.loan.update({
                 where: { id },
@@ -191,7 +231,7 @@ let LoansService = class LoansService {
             data: {
                 loanId: id,
                 action: 'DELIVERED',
-                notes: deliveryNotes ? `Activo entregado. Notas: ${deliveryNotes}` : 'Activo entregado',
+                notes: cleanNotes ? `Activo entregado. Notas: ${cleanNotes}` : 'Activo entregado',
             },
         });
         await this.prisma.assetHistory.create({
@@ -199,7 +239,7 @@ let LoansService = class LoansService {
                 assetId: loan.assetId,
                 userId: loan.userId,
                 action: 'LOAN_DELIVERED',
-                notes: `Entregado bajo préstamo ID ${loan.id}`,
+                notes: `Entregado bajo prestamo ID ${loan.id}`,
             },
         });
         await this.prisma.notification.create({
@@ -214,10 +254,13 @@ let LoansService = class LoansService {
     async return(id, condition, notes) {
         const loan = await this.prisma.loan.findUnique({ where: { id } });
         if (!loan)
-            throw new common_1.NotFoundException('Préstamo no encontrado');
+            throw new common_1.NotFoundException('Prestamo no encontrado');
         if (loan.status !== 'DELIVERED') {
-            throw new common_1.BadRequestException('El préstamo no está en estado ENTREGADO');
+            throw new common_1.BadRequestException('El prestamo no esta en estado ENTREGADO');
         }
+        const cleanNotes = notes?.trim();
+        if (!cleanNotes)
+            throw new common_1.BadRequestException('Debe diligenciar los comentarios de devolucion');
         const [updated] = await this.prisma.$transaction([
             this.prisma.loan.update({
                 where: { id },
@@ -225,7 +268,7 @@ let LoansService = class LoansService {
                     status: 'RETURNED',
                     actualReturnDate: new Date(),
                     returnCondition: condition,
-                    notes: notes ? `${loan.notes || ''}\nNotas de devolución: ${notes}` : loan.notes,
+                    notes: cleanNotes ? `${loan.notes || ''}\nNotas de devolucion: ${cleanNotes}` : loan.notes,
                 },
                 include: { asset: true, user: { select: userSelect } },
             }),
@@ -241,7 +284,7 @@ let LoansService = class LoansService {
             data: {
                 loanId: id,
                 action: 'RETURNED',
-                notes: `Activo devuelto. Condición: ${condition}. ${notes ? `Notas: ${notes}` : ''}`,
+                notes: `Activo devuelto. Condicion: ${condition}. ${cleanNotes ? `Notas: ${cleanNotes}` : ''}`,
             },
         });
         await this.prisma.assetHistory.create({
@@ -249,7 +292,7 @@ let LoansService = class LoansService {
                 assetId: loan.assetId,
                 userId: loan.userId,
                 action: 'LOAN_RETURNED',
-                notes: `Devuelto. Condición: ${condition}`,
+                notes: `Devuelto. Condicion: ${condition}`,
             },
         });
         return updated;

@@ -8,14 +8,8 @@ export declare class ReportsController {
     downloadLoansCsv(res: Response): Promise<Response<any, Record<string, any>>>;
     getTicketsSummary(from?: string, to?: string): Promise<{
         total: number;
-        byStatus: {
-            name: import(".prisma/client").$Enums.TicketStatus;
-            value: number;
-        }[];
-        byPriority: {
-            name: import(".prisma/client").$Enums.TicketPriority;
-            value: number;
-        }[];
+        byStatus: Record<string, number>;
+        byPriority: Record<string, number>;
         byField: {
             name: string;
             count: number;
@@ -23,10 +17,7 @@ export declare class ReportsController {
     }>;
     getAssetsSummary(): Promise<{
         total: number;
-        byStatus: {
-            name: import(".prisma/client").$Enums.AssetStatus;
-            value: number;
-        }[];
+        byStatus: Record<string, number>;
         byBrand: {
             name: string;
             count: number;
@@ -34,10 +25,8 @@ export declare class ReportsController {
     }>;
     getLoansSummary(): Promise<{
         total: number;
-        byStatus: {
-            name: import(".prisma/client").$Enums.LoanStatus;
-            value: number;
-        }[];
-        overdueCount: number;
+        byStatus: Record<string, number>;
+        overdue: number;
+        expiringSoon: number;
     }>;
 }
