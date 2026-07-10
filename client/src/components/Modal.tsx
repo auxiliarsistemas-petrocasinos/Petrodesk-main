@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 interface ModalProps {
@@ -11,20 +11,66 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, maxWidthClassName = 'max-w-2xl' }: ModalProps) {
+  const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+    const focusableElements = () => Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    )
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const focusable = focusableElements()
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialogRef.current?.focus()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault()
+        first.focus()
+      }
     }
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc)
-      // Prevent scrolling of the body when modal is open
-      document.body.style.overflow = 'hidden'
-    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    document.body.style.overflow = 'hidden'
+    const focusFrame = requestAnimationFrame(() => {
+      const [first] = focusableElements()
+      ;(first ?? dialogRef.current)?.focus()
+    })
+
     return () => {
-      document.removeEventListener('keydown', handleEsc)
-      document.body.style.overflow = 'unset'
+      cancelAnimationFrame(focusFrame)
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocusRef.current?.focus()
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -37,11 +83,19 @@ export default function Modal({ isOpen, onClose, title, children, maxWidthClassN
       />
       
       {/* Modal Content */}
-      <div className={`relative w-full ${maxWidthClassName} bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col max-h-[90vh]`}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`relative w-full ${maxWidthClassName} bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col max-h-[90vh]`}
+      >
         <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
-          <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
+          <h3 id={titleId} className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
           <button 
             onClick={onClose}
+            aria-label="Cerrar dialogo"
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-colors"
           >
             <X size={20} />

@@ -35,6 +35,7 @@ import { ToastContainer } from './components/Toast'
 
 function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
   const location = useLocation()
+  const isAdmin = user?.role === 'ADMIN'
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isAdminOpen, setIsAdminOpen] = useState(false)
   const [isFieldsOpen, setIsFieldsOpen] = useState(false)
@@ -56,6 +57,7 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
         {/* Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? 'Expandir navegacion' : 'Contraer navegacion'}
           className="absolute -right-3 top-10 bg-[#FF6A23] text-white p-1 rounded-full shadow-lg border-2 border-white dark:border-slate-900 z-50 hover:scale-110 transition-transform"
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -158,7 +160,7 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
           </Link>
 
           {/* Administración Accordion */}
-          <div className="pt-2 border-t border-slate-700/50 mt-4">
+          {isAdmin && <div className="pt-2 border-t border-slate-700/50 mt-4">
             <button
               onClick={() => !isCollapsed && setIsAdminOpen(!isAdminOpen)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 ${isCollapsed ? 'justify-center' : 'justify-between'}`}
@@ -196,7 +198,7 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
                 <Users size={20} />
               </Link>
             )}
-          </div>
+          </div>}
         </nav>
 
         <div className={`p-6 border-t border-slate-700/50 ${isCollapsed ? 'flex flex-col items-center gap-4' : ''}`}>
@@ -229,7 +231,7 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
           <div className="flex items-center gap-4">
             <div className="md:hidden text-2xl font-bold text-[#324158] dark:text-white">Petrodesk</div>
             <div className="relative">
-              <input type="text" placeholder="Buscar..." className="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-full text-sm border-none focus:ring-1 focus:ring-slate-200 outline-none w-64 dark:text-white" />
+              <input type="text" aria-label="Buscar" placeholder="Buscar..." className="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-full text-sm border-none focus:ring-1 focus:ring-slate-200 outline-none w-64 dark:text-white" />
               <Search size={16} className="absolute left-3 top-2.5 opacity-30 dark:text-white" />
             </div>
           </div>
@@ -280,12 +282,14 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
                       </div>
                     ) : (
                       notifications.map((notif) => (
-                        <div
+                        <button
+                          type="button"
                           key={notif.id}
+                          disabled={Boolean(notif.readAt)}
                           onClick={() => {
                             if (!notif.readAt) markAsRead(notif.id)
                           }}
-                          className={`p-4 text-xs transition hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer ${
+                          className={`block w-full p-4 text-left text-xs transition hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-slate-800/50 dark:disabled:hover:bg-transparent ${
                             !notif.readAt ? 'bg-orange-50/20 dark:bg-orange-950/5 font-medium' : ''
                           }`}
                         >
@@ -300,7 +304,7 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
                               minute: '2-digit'
                             })}
                           </div>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
@@ -319,7 +323,7 @@ function AppContent({ user, onLogout, darkMode, setDarkMode }: any) {
             <Route path="/fields" element={<Fields />} />
             <Route path="/visits" element={<Visits />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
