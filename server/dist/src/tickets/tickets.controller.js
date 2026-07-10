@@ -20,6 +20,11 @@ let TicketsController = class TicketsController {
     constructor(ticketsService) {
         this.ticketsService = ticketsService;
     }
+    requireAdmin(req) {
+        if (req.user?.role !== 'ADMIN') {
+            throw new common_1.ForbiddenException('Solo los administradores pueden editar o eliminar tickets.');
+        }
+    }
     create(createTicketDto, req) {
         return this.ticketsService.create(createTicketDto, req.user.id);
     }
@@ -35,13 +40,22 @@ let TicketsController = class TicketsController {
             pageSize: pageSize ? parseInt(pageSize) : undefined,
         });
     }
+    getPermissions(req) {
+        return { canManage: req.user?.role === 'ADMIN' };
+    }
     findOne(id) {
         return this.ticketsService.findOne(id);
     }
     update(id, updateTicketDto, req) {
+        this.requireAdmin(req);
         return this.ticketsService.update(id, updateTicketDto, req.user.id);
     }
+    remove(id, req) {
+        this.requireAdmin(req);
+        return this.ticketsService.remove(id);
+    }
     assign(id, assignedToId, req) {
+        this.requireAdmin(req);
         return this.ticketsService.assign(id, assignedToId, req.user.id);
     }
     addComment(id, comment, req) {
@@ -75,6 +89,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TicketsController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)('permissions'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TicketsController.prototype, "getPermissions", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -90,6 +111,14 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], TicketsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TicketsController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)(':id/assign'),
     __param(0, (0, common_1.Param)('id')),

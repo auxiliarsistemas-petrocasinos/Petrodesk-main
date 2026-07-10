@@ -2,6 +2,7 @@ import { TicketsService } from './tickets.service';
 export declare class TicketsController {
     private readonly ticketsService;
     constructor(ticketsService: TicketsService);
+    private requireAdmin;
     create(createTicketDto: any, req: any): Promise<{
         id: string;
         createdAt: Date;
@@ -63,6 +64,9 @@ export declare class TicketsController {
         pageSize: number;
         totalPages: number;
     }>;
+    getPermissions(req: any): {
+        canManage: boolean;
+    };
     findOne(id: string): Promise<{
         field: {
             id: string;
@@ -161,6 +165,9 @@ export declare class TicketsController {
         fieldId: string | null;
         title: string;
         priority: import("@prisma/client").$Enums.TicketPriority;
+    }>;
+    remove(id: string, req: any): Promise<{
+        message: string;
     }>;
     assign(id: string, assignedToId: string, req: any): Promise<{
         field: {

@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client';
 export declare class FieldsController {
     private readonly fieldsService;
     constructor(fieldsService: FieldsService);
-    create(createFieldDto: Prisma.FieldCreateInput): Promise<{
+    private requireAdmin;
+    create(createFieldDto: Prisma.FieldCreateInput, req: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -31,6 +32,9 @@ export declare class FieldsController {
         hseName: string | null;
         hsePhone: string | null;
     }[]>;
+    getPermissions(req: any): {
+        canManage: boolean;
+    };
     findOne(id: string): Promise<{
         id: string;
         createdAt: Date;
@@ -45,7 +49,7 @@ export declare class FieldsController {
         hseName: string | null;
         hsePhone: string | null;
     }>;
-    update(id: string, updateFieldDto: Prisma.FieldUpdateInput): Promise<{
+    update(id: string, updateFieldDto: Prisma.FieldUpdateInput, req: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -59,7 +63,7 @@ export declare class FieldsController {
         hseName: string | null;
         hsePhone: string | null;
     }>;
-    remove(id: string): Promise<{
+    remove(id: string, req: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;

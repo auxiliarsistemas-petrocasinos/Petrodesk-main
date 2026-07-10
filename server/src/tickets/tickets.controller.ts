@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, UseGuards, Request, Delete, ForbiddenException } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -6,6 +6,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('tickets')
 export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
+
+  private requireAdmin(req: any) {
+    if (req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo los administradores pueden editar o eliminar tickets.');
+    }
+  }
 
   @Post()
   create(@Body() createTicketDto: any, @Request() req) {
@@ -35,6 +41,11 @@ export class TicketsController {
     });
   }
 
+  @Get('permissions')
+  getPermissions(@Request() req) {
+    return { canManage: req.user?.role === 'ADMIN' };
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ticketsService.findOne(id);
@@ -42,11 +53,19 @@ export class TicketsController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateTicketDto: any, @Request() req) {
+    this.requireAdmin(req);
     return this.ticketsService.update(id, updateTicketDto, req.user.id);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Request() req) {
+    this.requireAdmin(req);
+    return this.ticketsService.remove(id);
   }
 
   @Post(':id/assign')
   assign(@Param('id') id: string, @Body('assignedToId') assignedToId: string, @Request() req) {
+    this.requireAdmin(req);
     return this.ticketsService.assign(id, assignedToId, req.user.id);
   }
 

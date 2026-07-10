@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Plus, Search, ChevronLeft, ChevronRight, Ticket as TicketIcon,
-  MessageSquare, Clock, User, Send, ArrowUpRight, X
+  MessageSquare, Clock, User, Send, Eye, Pencil, Trash2, X
 } from 'lucide-react'
 import Modal from '../components/Modal'
 import { useTickets } from '../hooks/useTickets'
@@ -35,7 +35,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 export default function Tickets() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { tickets, loading, totalPages, total, fetchTickets, createTicket, updateTicket, assignTicket, addComment } = useTickets()
+  const { tickets, loading, totalPages, total, fetchTickets, createTicket, updateTicket, deleteTicket, assignTicket, addComment } = useTickets()
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
@@ -47,9 +47,13 @@ export default function Tickets() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Create Form
-  const [createForm, setCreateForm] = useState({ title: '', description: '', priority: 'LOW', fieldId: '' })
+  const emptyForm = { title: '', description: '', priority: 'LOW', fieldId: '', status: 'OPEN', assignedToId: '' }
+  const [createForm, setCreateForm] = useState(emptyForm)
 
   // Detail state
   const [newComment, setNewComment] = useState('')
@@ -60,6 +64,7 @@ export default function Tickets() {
   useEffect(() => {
     api.get('/users').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/fields').then(data => setFields(Array.isArray(data) ? data : [])).catch(() => {})
+    api.get('/tickets/permissions').then(data => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
   }, [])
 
   const loadTickets = useCallback(() => {
@@ -92,11 +97,51 @@ export default function Tickets() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await createTicket(createForm)
-      setCreateForm({ title: '', description: '', priority: 'LOW', fieldId: '' })
+      if (editingId) await updateTicket(editingId, createForm)
+      else await createTicket(createForm)
+      setCreateForm(emptyForm)
+      setEditingId(null)
       setIsCreateOpen(false)
       loadTickets()
     } catch {}
+  }
+
+  const openCreate = () => {
+    setEditingId(null)
+    setCreateForm(emptyForm)
+    setIsCreateOpen(true)
+  }
+
+  const openEdit = (ticket: any) => {
+    setEditingId(ticket.id)
+    setCreateForm({
+      title: ticket.title || '',
+      description: ticket.description || '',
+      priority: ticket.priority || 'LOW',
+      fieldId: ticket.fieldId || '',
+      status: ticket.status || 'OPEN',
+      assignedToId: ticket.assignedToId || '',
+    })
+    setSelectedTicket(null)
+    setIsCreateOpen(true)
+  }
+
+  const closeForm = () => {
+    setIsCreateOpen(false)
+    setEditingId(null)
+    setCreateForm(emptyForm)
+  }
+
+  const handleDelete = async (ticket: any) => {
+    if (!window.confirm(`¿Eliminar definitivamente el ticket "${ticket.title}"?`)) return
+    setDeletingId(ticket.id)
+    try {
+      await deleteTicket(ticket.id)
+      setSelectedTicket(null)
+      loadTickets()
+    } catch {} finally {
+      setDeletingId(null)
+    }
   }
 
   const handleStatusChange = async (id: string, newStatus: string) => {
@@ -136,7 +181,7 @@ export default function Tickets() {
           <p className="text-slate-500 dark:text-slate-400">Gestión de solicitudes de soporte técnico y operativo</p>
         </div>
         <button
-          onClick={() => setIsCreateOpen(true)}
+          onClick={openCreate}
           className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02]"
         >
           <Plus size={18} /> Nuevo Ticket
@@ -208,7 +253,7 @@ export default function Tickets() {
           </p>
           {!searchQuery && !statusFilter && !priorityFilter && (
             <button
-              onClick={() => setIsCreateOpen(true)}
+              onClick={openCreate}
               className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all"
             >
               <Plus size={18} /> Crear Ticket
@@ -228,7 +273,7 @@ export default function Tickets() {
                     <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prioridad</th>
                     <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Asignado a</th>
                     <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Creado</th>
-                    <th className="text-right px-6 py-4"></th>
+                    <th className="text-right px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -256,7 +301,13 @@ export default function Tickets() {
                         {new Date(ticket.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <ArrowUpRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-[#FF6A23] transition-colors inline-block" />
+                        <div className="flex items-center justify-end gap-1">
+                          <button type="button" onClick={event => { event.stopPropagation(); openDetail(ticket.id) }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors" title="Ver ticket" aria-label={`Ver ticket ${ticket.title}`}><Eye size={16} /></button>
+                          {isAdmin && <>
+                            <button type="button" onClick={event => { event.stopPropagation(); openEdit(ticket) }} className="p-2 text-slate-400 hover:text-[#FF6A23] hover:bg-orange-50 dark:hover:bg-orange-950/30 rounded-lg transition-colors" title="Editar ticket" aria-label={`Editar ticket ${ticket.title}`}><Pencil size={16} /></button>
+                            <button type="button" disabled={deletingId === ticket.id} onClick={event => { event.stopPropagation(); handleDelete(ticket) }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-40" title="Eliminar ticket" aria-label={`Eliminar ticket ${ticket.title}`}><Trash2 size={16} /></button>
+                          </>}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -292,7 +343,7 @@ export default function Tickets() {
       )}
 
       {/* Create Modal */}
-      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Nuevo Ticket">
+      <Modal isOpen={isCreateOpen} onClose={closeForm} title={editingId ? 'Editar Ticket' : 'Nuevo Ticket'}>
         <form onSubmit={handleCreate} className="space-y-5">
           <div>
             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Título *</label>
@@ -341,12 +392,26 @@ export default function Tickets() {
               </select>
             </div>
           </div>
+          {editingId && <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Estado</label>
+              <select value={createForm.status} onChange={e => setCreateForm(f => ({ ...f, status: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white">
+                <option value="OPEN">Abierto</option><option value="IN_PROGRESS">En Progreso</option><option value="ESCALATED">Escalado</option><option value="CLOSED">Cerrado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Asignar a</label>
+              <select value={createForm.assignedToId} onChange={e => setCreateForm(f => ({ ...f, assignedToId: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white">
+                <option value="">Sin asignar</option>{users.map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
+              </select>
+            </div>
+          </div>}
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={() => setIsCreateOpen(false)} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all">
+            <button type="button" onClick={closeForm} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all">
               Cancelar
             </button>
             <button type="submit" disabled={loading} className="px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-xl shadow-lg shadow-orange-500/10 transition-all disabled:opacity-50">
-              Crear Ticket
+              {editingId ? 'Guardar Cambios' : 'Crear Ticket'}
             </button>
           </div>
         </form>
@@ -415,6 +480,11 @@ export default function Tickets() {
                 </select>
               </div>
             </div>
+
+            {isAdmin && <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => openEdit(selectedTicket)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded-xl transition-colors"><Pencil size={15} /> Editar ticket</button>
+              <button type="button" disabled={deletingId === selectedTicket.id} onClick={() => handleDelete(selectedTicket)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-colors disabled:opacity-40"><Trash2 size={15} /> Eliminar ticket</button>
+            </div>}
 
             {/* Comments */}
             <div className="space-y-3">

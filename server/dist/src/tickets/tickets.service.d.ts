@@ -151,6 +151,9 @@ export declare class TicketsService {
         priority: import("@prisma/client").$Enums.TicketPriority;
     }>;
     update(id: string, data: any, userId: string): Promise<Ticket>;
+    remove(id: string): Promise<{
+        message: string;
+    }>;
     assign(ticketId: string, assignedToId: string, userId: string): Promise<{
         field: {
             id: string;

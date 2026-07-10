@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FieldsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const client_1 = require("@prisma/client");
 let FieldsService = class FieldsService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -32,7 +33,15 @@ let FieldsService = class FieldsService {
         return this.prisma.field.update({ where: { id }, data });
     }
     async remove(id) {
-        return this.prisma.field.delete({ where: { id } });
+        try {
+            return await this.prisma.field.delete({ where: { id } });
+        }
+        catch (error) {
+            if (error instanceof client_1.Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+                throw new common_1.ConflictException('No se puede eliminar un campo con activos, tickets o visitas asociados.');
+            }
+            throw error;
+        }
     }
 };
 exports.FieldsService = FieldsService;

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Field, Prisma } from '@prisma/client';
 
@@ -25,6 +25,13 @@ export class FieldsService {
   }
 
   async remove(id: string): Promise<Field> {
-    return this.prisma.field.delete({ where: { id } });
+    try {
+      return await this.prisma.field.delete({ where: { id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException('No se puede eliminar un campo con activos, tickets o visitas asociados.');
+      }
+      throw error;
+    }
   }
 }

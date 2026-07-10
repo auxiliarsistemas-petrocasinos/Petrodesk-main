@@ -117,6 +117,9 @@ export class TicketsService {
     if (data.fieldId !== undefined) {
       updateData.field = data.fieldId ? { connect: { id: data.fieldId } } : { disconnect: true };
     }
+    if (data.assignedToId !== undefined) {
+      updateData.assignedTo = data.assignedToId ? { connect: { id: data.assignedToId } } : { disconnect: true };
+    }
 
     const ticket = await this.prisma.ticket.update({
       where: { id },
@@ -141,13 +144,27 @@ export class TicketsService {
     return ticket;
   }
 
+  async remove(id: string) {
+    const ticket = await this.prisma.ticket.findUnique({ where: { id }, select: { id: true, title: true } });
+    if (!ticket) throw new NotFoundException('Ticket no encontrado');
+
+    await this.prisma.$transaction([
+      this.prisma.ticketComment.deleteMany({ where: { ticketId: id } }),
+      this.prisma.ticketAttachment.deleteMany({ where: { ticketId: id } }),
+      this.prisma.ticketActivity.deleteMany({ where: { ticketId: id } }),
+      this.prisma.ticket.delete({ where: { id } }),
+    ]);
+
+    return { message: `Ticket ${ticket.title} eliminado correctamente` };
+  }
+
   async assign(ticketId: string, assignedToId: string, userId: string) {
     const current = await this.prisma.ticket.findUnique({ where: { id: ticketId } });
     if (!current) throw new NotFoundException('Ticket no encontrado');
 
     const ticket = await this.prisma.ticket.update({
       where: { id: ticketId },
-      data: { assignedTo: { connect: { id: assignedToId } } },
+      data: { assignedTo: assignedToId ? { connect: { id: assignedToId } } : { disconnect: true } },
       include: { createdBy: { select: userSelect }, assignedTo: { select: userSelect }, field: true },
     });
 
@@ -156,13 +173,15 @@ export class TicketsService {
     });
 
     // Create notification for the assigned user
-    await this.prisma.notification.create({
-      data: {
-        userId: assignedToId,
-        type: 'TICKET_ASSIGNED',
-        message: `Te han asignado el ticket: ${ticket.title}`,
-      },
-    });
+    if (assignedToId) {
+      await this.prisma.notification.create({
+        data: {
+          userId: assignedToId,
+          type: 'TICKET_ASSIGNED',
+          message: `Te han asignado el ticket: ${ticket.title}`,
+        },
+      });
+    }
 
     return ticket;
   }

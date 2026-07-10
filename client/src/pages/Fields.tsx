@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { MapPin, Plus, UserCheck, Briefcase, LayoutGrid, List as ListIcon, Globe, Pencil, Trash2 } from 'lucide-react'
+import { MapPin, Plus, UserCheck, Briefcase, LayoutGrid, List as ListIcon, Globe, Eye, Pencil, Trash2 } from 'lucide-react'
 import Modal from '../components/Modal'
+import { api } from '../lib/api'
+import { showToast } from '../components/Toast'
 
 interface Field {
   id: string
@@ -20,6 +22,9 @@ export default function Fields() {
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [selectedField, setSelectedField] = useState<Field | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   
   // State for form
   const [formData, setFormData] = useState({
@@ -63,6 +68,7 @@ export default function Fields() {
 
   useEffect(() => {
     fetchFields()
+    api.get('/fields/permissions').then(data => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,9 +96,14 @@ export default function Fields() {
         })
         setEditingId(null)
         fetchFields()
+        showToast(editingId ? 'Campo actualizado correctamente' : 'Campo creado correctamente', 'success')
+      } else {
+        const error = await res.json().catch(() => ({}))
+        showToast(error.message || 'No se pudo guardar el campo', 'error')
       }
     } catch (err) {
       console.error(err)
+      showToast('No se pudo guardar el campo', 'error')
     }
   }
 
@@ -118,16 +129,25 @@ export default function Fields() {
     if (!confirm('¿Está seguro de eliminar este campo?')) return
 
     try {
+      setDeletingId(id)
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/fields/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
 
       if (res.ok) {
+        setSelectedField(null)
         fetchFields()
+        showToast('Campo eliminado correctamente', 'success')
+      } else {
+        const error = await res.json().catch(() => ({}))
+        showToast(error.message || 'No se pudo eliminar el campo porque tiene registros asociados', 'error')
       }
     } catch (err) {
       console.error(err)
+      showToast('No se pudo eliminar el campo', 'error')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -155,7 +175,7 @@ export default function Fields() {
                <LayoutGrid size={20} />
              </button>
            </div>
-           <button 
+           {isAdmin && <button
               onClick={() => {
                 setEditingId(null)
                 setFormData({ 
@@ -169,7 +189,7 @@ export default function Fields() {
               className="bg-[#324158] dark:bg-white dark:text-[#324158] text-white px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-95"
             >
               <Plus size={18} /> Agregar Campo
-            </button>
+            </button>}
         </div>
       </div>
 
@@ -188,8 +208,11 @@ export default function Fields() {
                 <div className="flex justify-between items-start">
                   <h3 className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-[#FF6A23] transition-colors">{field.name}</h3>
                   <div className="flex gap-2">
-                    <button onClick={() => handleEdit(field)} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"><Pencil size={14} /></button>
-                    <button onClick={() => handleDelete(field.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => setSelectedField(field)} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors" title="Ver campo" aria-label={`Ver campo ${field.name}`}><Eye size={14} /></button>
+                    {isAdmin && <>
+                      <button type="button" onClick={() => handleEdit(field)} className="p-1.5 text-slate-400 hover:text-[#FF6A23] transition-colors" title="Editar campo" aria-label={`Editar campo ${field.name}`}><Pencil size={14} /></button>
+                      <button type="button" disabled={deletingId === field.id} onClick={() => handleDelete(field.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40" title="Eliminar campo" aria-label={`Eliminar campo ${field.name}`}><Trash2 size={14} /></button>
+                    </>}
                   </div>
                 </div>
                 <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
@@ -255,12 +278,11 @@ export default function Fields() {
                     </td>
                     <td className="px-6 py-4 text-center">
                        <div className="flex justify-center gap-2">
-                         <button onClick={() => handleEdit(field)} className="text-slate-400 hover:text-blue-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                           <Pencil size={18} />
-                         </button>
-                         <button onClick={() => handleDelete(field.id)} className="text-slate-400 hover:text-red-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                           <Trash2 size={18} />
-                         </button>
+                         <button type="button" onClick={() => setSelectedField(field)} className="text-slate-400 hover:text-blue-500 p-2 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors" title="Ver campo" aria-label={`Ver campo ${field.name}`}><Eye size={18} /></button>
+                         {isAdmin && <>
+                           <button type="button" onClick={() => handleEdit(field)} className="text-slate-400 hover:text-[#FF6A23] p-2 hover:bg-orange-50 dark:hover:bg-orange-950/30 rounded-lg transition-colors" title="Editar campo" aria-label={`Editar campo ${field.name}`}><Pencil size={18} /></button>
+                           <button type="button" disabled={deletingId === field.id} onClick={() => handleDelete(field.id)} className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-40" title="Eliminar campo" aria-label={`Eliminar campo ${field.name}`}><Trash2 size={18} /></button>
+                         </>}
                        </div>
                     </td>
                   </tr>
@@ -270,6 +292,25 @@ export default function Fields() {
           </div>
         </div>
       )}
+
+      <Modal isOpen={!!selectedField} onClose={() => setSelectedField(null)} title={selectedField?.name || 'Detalle del Campo'}>
+        {selectedField && <div className="space-y-5 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FieldDetail label="Ubicación" value={selectedField.location} />
+            <FieldDetail label="Descripción" value={selectedField.description} />
+            <FieldDetail label="Coordinador" value={selectedField.coordinatorName} />
+            <FieldDetail label="Teléfono coordinador" value={selectedField.coordinatorPhone} />
+            <FieldDetail label="Supervisor" value={selectedField.supervisorName} />
+            <FieldDetail label="Teléfono supervisor" value={selectedField.supervisorPhone} />
+            <FieldDetail label="Responsable HSE" value={selectedField.hseName} />
+            <FieldDetail label="Teléfono HSE" value={selectedField.hsePhone} />
+          </div>
+          {isAdmin && <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onClick={() => { const field = selectedField; setSelectedField(null); handleEdit(field) }} className="flex items-center gap-2 px-4 py-2 font-bold text-[#FF6A23] hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded-xl"><Pencil size={15} /> Editar campo</button>
+            <button type="button" disabled={deletingId === selectedField.id} onClick={() => handleDelete(selectedField.id)} className="flex items-center gap-2 px-4 py-2 font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl disabled:opacity-40"><Trash2 size={15} /> Eliminar campo</button>
+          </div>}
+        </div>}
+      </Modal>
 
       {/* MODAL CRUD CAMPO */}
       <Modal
@@ -402,5 +443,12 @@ export default function Fields() {
       </Modal>
     </div>
   )
+}
+
+function FieldDetail({ label, value }: { label: string; value?: string }) {
+  return <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+    <span className="block text-xs font-bold uppercase text-slate-400 mb-1">{label}</span>
+    <span className="font-medium text-slate-700 dark:text-slate-200">{value || 'N/A'}</span>
+  </div>
 }
 

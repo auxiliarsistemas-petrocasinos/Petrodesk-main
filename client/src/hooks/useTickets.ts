@@ -51,7 +51,7 @@ export function useTickets() {
     }
   };
 
-  const updateTicket = async (id: string, data: { status?: string; priority?: string; fieldId?: string }) => {
+  const updateTicket = async (id: string, data: { title?: string; description?: string; status?: string; priority?: string; fieldId?: string; assignedToId?: string }) => {
     setLoading(true);
     try {
       const response = await api.patch(`/tickets/${id}`, data);
@@ -62,6 +62,17 @@ export function useTickets() {
       throw err;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteTicket = async (id: string) => {
+    try {
+      const response = await api.delete(`/tickets/${id}`);
+      showToast('Ticket eliminado correctamente', 'success');
+      return response;
+    } catch (err: any) {
+      showToast(err.message || 'Error al eliminar ticket', 'error');
+      throw err;
     }
   };
 
@@ -97,6 +108,7 @@ export function useTickets() {
     fetchTickets,
     createTicket,
     updateTicket,
+    deleteTicket,
     assignTicket,
     addComment,
   };
