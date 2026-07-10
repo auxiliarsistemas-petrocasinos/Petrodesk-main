@@ -126,7 +126,46 @@ let LoansService = class LoansService {
         return loan;
     }
     async update(id, data) {
-        return this.prisma.loan.update({ where: { id }, data });
+        const loan = await this.prisma.loan.findUnique({ where: { id } });
+        if (!loan)
+            throw new common_1.NotFoundException('Prestamo no encontrado');
+        const updateData = {};
+        if (data.userId !== undefined) {
+            const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
+            if (!user || !user.isActive)
+                throw new common_1.BadRequestException('Solicitante no encontrado o inactivo');
+            updateData.user = { connect: { id: data.userId } };
+        }
+        if (data.expectedReturnDate !== undefined) {
+            const expectedReturnDate = new Date(data.expectedReturnDate);
+            if (Number.isNaN(expectedReturnDate.getTime()))
+                throw new common_1.BadRequestException('La fecha esperada no es valida');
+            updateData.expectedReturnDate = expectedReturnDate;
+        }
+        if (data.notes !== undefined)
+            updateData.notes = data.notes?.trim() || null;
+        const updated = await this.prisma.loan.update({
+            where: { id },
+            data: updateData,
+            include: { asset: true, user: { select: userSelect }, requestedBy: { select: userSelect }, approvedBy: { select: userSelect } },
+        });
+        await this.prisma.loanHistory.create({
+            data: { loanId: id, action: 'UPDATED', notes: 'Datos del prestamo actualizados por un administrador' },
+        });
+        return updated;
+    }
+    async remove(id) {
+        const loan = await this.prisma.loan.findUnique({ where: { id } });
+        if (!loan)
+            throw new common_1.NotFoundException('Prestamo no encontrado');
+        if (loan.status === 'APPROVED' || loan.status === 'DELIVERED') {
+            throw new common_1.BadRequestException('No se puede eliminar un prestamo aprobado o entregado. Finalice o rechace el proceso primero.');
+        }
+        await this.prisma.$transaction([
+            this.prisma.loanHistory.deleteMany({ where: { loanId: id } }),
+            this.prisma.loan.delete({ where: { id } }),
+        ]);
+        return { message: 'Prestamo eliminado correctamente' };
     }
     async approve(id, approvedById) {
         const loan = await this.prisma.loan.findUnique({ where: { id }, include: { asset: true } });

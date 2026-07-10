@@ -50,6 +50,28 @@ export function useLoans() {
     }
   };
 
+  const updateLoan = async (id: string, data: { userId: string; expectedReturnDate: string; notes?: string }) => {
+    try {
+      const response = await api.patch(`/loans/${id}`, data);
+      showToast('Prestamo actualizado correctamente', 'success');
+      return response;
+    } catch (err: any) {
+      showToast(err.message || 'Error al actualizar prestamo', 'error');
+      throw err;
+    }
+  };
+
+  const deleteLoan = async (id: string) => {
+    try {
+      const response = await api.delete(`/loans/${id}`);
+      showToast('Prestamo eliminado correctamente', 'success');
+      return response;
+    } catch (err: any) {
+      showToast(err.message || 'Error al eliminar prestamo', 'error');
+      throw err;
+    }
+  };
+
   const approveLoan = async (id: string) => {
     setLoading(true);
     try {
@@ -113,6 +135,8 @@ export function useLoans() {
     total,
     fetchLoans,
     createLoan,
+    updateLoan,
+    deleteLoan,
     approveLoan,
     rejectLoan,
     deliverLoan,

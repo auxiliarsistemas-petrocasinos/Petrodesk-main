@@ -2,6 +2,7 @@ import { LoansService } from './loans.service';
 export declare class LoansController {
     private readonly loansService;
     constructor(loansService: LoansService);
+    private requireAdmin;
     create(createLoanDto: any, req: any): Promise<{
         id: string;
         createdAt: Date;
@@ -90,6 +91,9 @@ export declare class LoansController {
         pageSize: number;
         totalPages: number;
     }>;
+    getPermissions(req: any): {
+        canManage: boolean;
+    };
     findOne(id: string): Promise<{
         id: string;
         createdAt: Date;
@@ -106,7 +110,7 @@ export declare class LoansController {
         returnCondition: string | null;
         confirmationText: string | null;
     }>;
-    update(id: string, updateLoanDto: any): Promise<{
+    update(id: string, updateLoanDto: any, req: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -121,6 +125,9 @@ export declare class LoansController {
         actualReturnDate: Date | null;
         returnCondition: string | null;
         confirmationText: string | null;
+    }>;
+    remove(id: string, req: any): Promise<{
+        message: string;
     }>;
     approve(id: string, req: any): Promise<{
         id: string;

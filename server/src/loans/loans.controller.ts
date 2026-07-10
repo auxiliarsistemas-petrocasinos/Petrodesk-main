@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, UseGuards, Request, Delete, ForbiddenException } from '@nestjs/common';
 import { LoansService } from './loans.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LoanStatus } from '@prisma/client';
@@ -7,6 +7,12 @@ import { LoanStatus } from '@prisma/client';
 @Controller('loans')
 export class LoansController {
   constructor(private readonly loansService: LoansService) {}
+
+  private requireAdmin(req: any) {
+    if (req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo los administradores pueden editar o eliminar prestamos.');
+    }
+  }
 
   @Post()
   create(@Body() createLoanDto: any, @Request() req) {
@@ -32,14 +38,26 @@ export class LoansController {
     });
   }
 
+  @Get('permissions')
+  getPermissions(@Request() req) {
+    return { canManage: req.user?.role === 'ADMIN' };
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.loansService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLoanDto: any) {
+  update(@Param('id') id: string, @Body() updateLoanDto: any, @Request() req) {
+    this.requireAdmin(req);
     return this.loansService.update(id, updateLoanDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Request() req) {
+    this.requireAdmin(req);
+    return this.loansService.remove(id);
   }
 
   @Post(':id/approve')

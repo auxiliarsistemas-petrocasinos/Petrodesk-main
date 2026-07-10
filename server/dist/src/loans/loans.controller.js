@@ -20,6 +20,11 @@ let LoansController = class LoansController {
     constructor(loansService) {
         this.loansService = loansService;
     }
+    requireAdmin(req) {
+        if (req.user?.role !== 'ADMIN') {
+            throw new common_1.ForbiddenException('Solo los administradores pueden editar o eliminar prestamos.');
+        }
+    }
     create(createLoanDto, req) {
         return this.loansService.create(createLoanDto, req.user.id);
     }
@@ -33,11 +38,19 @@ let LoansController = class LoansController {
             pageSize: pageSize ? parseInt(pageSize) : undefined,
         });
     }
+    getPermissions(req) {
+        return { canManage: req.user?.role === 'ADMIN' };
+    }
     findOne(id) {
         return this.loansService.findOne(id);
     }
-    update(id, updateLoanDto) {
+    update(id, updateLoanDto, req) {
+        this.requireAdmin(req);
         return this.loansService.update(id, updateLoanDto);
+    }
+    remove(id, req) {
+        this.requireAdmin(req);
+        return this.loansService.remove(id);
     }
     approve(id, req) {
         return this.loansService.approve(id, req.user.id);
@@ -77,6 +90,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], LoansController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)('permissions'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], LoansController.prototype, "getPermissions", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -87,10 +107,19 @@ __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], LoansController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
-], LoansController.prototype, "update", null);
+], LoansController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)(':id/approve'),
     __param(0, (0, common_1.Param)('id')),

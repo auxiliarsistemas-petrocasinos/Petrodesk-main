@@ -2,15 +2,17 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
-  ArrowUpRight,
   Calendar,
   CheckCircle,
   Clock,
   CornerDownLeft,
   Package,
+  Eye,
+  Pencil,
   Plus,
   RefreshCw,
   Truck,
+  Trash2,
   User,
   X,
   XCircle,
@@ -108,13 +110,16 @@ function historyActionTextClass(action?: string) {
 
 export default function Loans() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { loans, loading, fetchLoans, createLoan, approveLoan, rejectLoan, deliverLoan, returnLoan } = useLoans()
+  const { loans, loading, fetchLoans, createLoan, updateLoan, deleteLoan, approveLoan, rejectLoan, deliverLoan, returnLoan } = useLoans()
 
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
   const [overdueFilter, setOverdueFilter] = useState(searchParams.get('overdue') === 'true')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedLoan, setSelectedLoan] = useState<any>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [editingLoan, setEditingLoan] = useState<any>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [users, setUsers] = useState<any[]>([])
   const [availableAssets, setAvailableAssets] = useState<any[]>([])
   const [createForm, setCreateForm] = useState({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
@@ -125,6 +130,7 @@ export default function Loans() {
   const loadReferenceData = useCallback(() => {
     api.get('/users').then((data) => setUsers(Array.isArray(data) ? data.filter((u: any) => u.isActive !== false) : [])).catch(() => {})
     api.get('/assets?status=AVAILABLE&pageSize=100').then((data) => setAvailableAssets(data.data || [])).catch(() => {})
+    api.get('/loans/permissions').then((data) => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
   }, [])
 
   const loadLoans = useCallback(() => {
@@ -167,11 +173,56 @@ export default function Loans() {
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
     try {
-      await createLoan(createForm)
+      if (editingLoan) {
+        await updateLoan(editingLoan.id, {
+          userId: createForm.userId,
+          expectedReturnDate: createForm.expectedReturnDate,
+          notes: createForm.notes,
+        })
+      } else {
+        await createLoan(createForm)
+      }
       setCreateForm({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
+      setEditingLoan(null)
       setIsCreateOpen(false)
       refreshAll()
     } catch {}
+  }
+
+  const openCreate = () => {
+    setEditingLoan(null)
+    setCreateForm({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
+    setIsCreateOpen(true)
+  }
+
+  const openEdit = (loan: any) => {
+    setEditingLoan(loan)
+    setCreateForm({
+      assetId: loan.assetId,
+      userId: loan.userId,
+      expectedReturnDate: new Date(loan.expectedReturnDate).toISOString().slice(0, 10),
+      notes: loan.notes || '',
+    })
+    setSelectedLoan(null)
+    setIsCreateOpen(true)
+  }
+
+  const closeForm = () => {
+    setIsCreateOpen(false)
+    setEditingLoan(null)
+    setCreateForm({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
+  }
+
+  const handleDelete = async (loan: any) => {
+    if (!window.confirm(`¿Eliminar definitivamente el prestamo de ${loanTitle(loan)}?`)) return
+    setDeletingId(loan.id)
+    try {
+      await deleteLoan(loan.id)
+      setSelectedLoan(null)
+      refreshAll()
+    } catch {} finally {
+      setDeletingId(null)
+    }
   }
 
   const openDetail = async (id: string) => {
@@ -244,7 +295,7 @@ export default function Loans() {
           <p className="text-slate-500 dark:text-slate-400">Solicitud, aprobacion, entrega y devolucion de activos.</p>
         </div>
         <button
-          onClick={() => setIsCreateOpen(true)}
+          onClick={openCreate}
           className="flex items-center gap-2 rounded-2xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] hover:bg-[#e55a1d]"
         >
           <Plus size={18} />
@@ -329,6 +380,11 @@ export default function Loans() {
                     </p>
                   </button>
                   <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => openDetail(loan.id)} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-950/30" title="Ver prestamo" aria-label={`Ver prestamo ${loanTitle(loan)}`}><Eye size={17} /></button>
+                    {isAdmin && <>
+                      <button type="button" onClick={() => openEdit(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A23] dark:hover:bg-orange-950/30" title="Editar prestamo" aria-label={`Editar prestamo ${loanTitle(loan)}`}><Pencil size={17} /></button>
+                      <button type="button" disabled={deletingId === loan.id || ['APPROVED', 'DELIVERED'].includes(loan.status)} onClick={() => handleDelete(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/30" title={['APPROVED', 'DELIVERED'].includes(loan.status) ? 'Finalice o rechace el prestamo antes de eliminarlo' : 'Eliminar prestamo'} aria-label={`Eliminar prestamo ${loanTitle(loan)}`}><Trash2 size={17} /></button>
+                    </>}
                     {loan.status === 'REQUESTED' && (
                       <>
                         <button onClick={() => runAction(loan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
@@ -352,16 +408,19 @@ export default function Loans() {
             <h3 className="mb-3 font-bold text-slate-800 dark:text-white">Ultimas devoluciones</h3>
             <div className="space-y-2">
               {returnedLoans.map((loan: any) => (
-                <button key={loan.id} onClick={() => openDetail(loan.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm dark:border-slate-800 dark:bg-slate-900">
-                  <span>
+                <div key={loan.id} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900">
+                  <button type="button" onClick={() => openDetail(loan.id)} className="min-w-0 flex-1 text-left">
                     <span className="font-medium text-slate-800 dark:text-white">{loanTitle(loan)}</span>
                     {' / '}
                     {getUserDisplayName(loan.user)}
                     {' / devuelto el '}
                     {formatDate(loan.actualReturnDate)}
-                  </span>
-                  <ArrowUpRight size={16} className="text-slate-300" />
-                </button>
+                  </button>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => openDetail(loan.id)} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-500" title="Ver prestamo"><Eye size={16} /></button>
+                    {isAdmin && <><button type="button" onClick={() => openEdit(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A23]" title="Editar prestamo"><Pencil size={16} /></button><button type="button" disabled={deletingId === loan.id} onClick={() => handleDelete(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="Eliminar prestamo"><Trash2 size={16} /></button></>}
+                  </div>
+                </div>
               ))}
               {returnedLoans.length === 0 && <p className="text-sm text-slate-400">Aun no hay devoluciones registradas.</p>}
             </div>
@@ -372,14 +431,18 @@ export default function Loans() {
               <h3 className="mb-3 font-bold text-slate-800 dark:text-white">Solicitudes denegadas</h3>
               <div className="space-y-2">
                 {rejectedLoans.map((loan: any) => (
-                  <button key={loan.id} onClick={() => openDetail(loan.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm dark:border-slate-800 dark:bg-slate-900">
-                    <span>
+                  <div key={loan.id} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900">
+                    <button type="button" onClick={() => openDetail(loan.id)} className="min-w-0 flex-1 text-left">
                       <span className="font-medium text-slate-800 dark:text-white">{loanTitle(loan)}</span>
                       {' / '}
                       {getUserDisplayName(loan.user)}
-                    </span>
+                    </button>
                     <StatusBadge status="REJECTED" />
-                  </button>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => openDetail(loan.id)} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-500" title="Ver prestamo"><Eye size={16} /></button>
+                      {isAdmin && <><button type="button" onClick={() => openEdit(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A23]" title="Editar prestamo"><Pencil size={16} /></button><button type="button" disabled={deletingId === loan.id} onClick={() => handleDelete(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="Eliminar prestamo"><Trash2 size={16} /></button></>}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -387,11 +450,11 @@ export default function Loans() {
         </>
       )}
 
-      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Solicitar Prestamo">
+      <Modal isOpen={isCreateOpen} onClose={closeForm} title={editingLoan ? 'Editar Prestamo' : 'Solicitar Prestamo'}>
         <form onSubmit={handleCreate} className="space-y-5">
           <div>
             <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Activo disponible *</label>
-            <select
+            {editingLoan ? <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{loanTitle(editingLoan)}</div> : <select
               required
               value={createForm.assetId}
               onChange={(event) => setCreateForm((form) => ({ ...form, assetId: event.target.value }))}
@@ -403,8 +466,8 @@ export default function Loans() {
                   {asset.internalCode} - {[asset.brand, asset.model].filter(Boolean).join(' / ') || 'sin referencia'}
                 </option>
               ))}
-            </select>
-            {availableAssets.length === 0 && <p className="mt-2 text-xs text-amber-600">No hay activos disponibles para prestar.</p>}
+            </select>}
+            {!editingLoan && availableAssets.length === 0 && <p className="mt-2 text-xs text-amber-600">No hay activos disponibles para prestar.</p>}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Solicitante *</label>
@@ -447,9 +510,9 @@ export default function Loans() {
             </p>
           )}
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-            <button type="button" onClick={() => setIsCreateOpen(false)} className="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 transition-all hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancelar</button>
-            <button type="submit" disabled={loading || availableAssets.length === 0} className="rounded-xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/10 transition-all hover:bg-[#e55a1d] disabled:opacity-50">
-              Solicitar Prestamo
+            <button type="button" onClick={closeForm} className="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 transition-all hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancelar</button>
+            <button type="submit" disabled={loading || (!editingLoan && availableAssets.length === 0)} className="rounded-xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/10 transition-all hover:bg-[#e55a1d] disabled:opacity-50">
+              {editingLoan ? 'Guardar Cambios' : 'Solicitar Prestamo'}
             </button>
           </div>
         </form>
@@ -549,6 +612,10 @@ export default function Loans() {
             </div>
             {selectedLoan.notes && <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">{selectedLoan.notes}</p>}
             <div className="flex flex-wrap gap-2">
+              {isAdmin && <>
+                <button type="button" onClick={() => openEdit(selectedLoan)} className="flex items-center gap-2 rounded-lg bg-orange-50 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:bg-orange-100 dark:bg-orange-950/30"><Pencil size={15} /> Editar</button>
+                <button type="button" disabled={deletingId === selectedLoan.id || ['APPROVED', 'DELIVERED'].includes(selectedLoan.status)} onClick={() => handleDelete(selectedLoan)} className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-red-950/30" title={['APPROVED', 'DELIVERED'].includes(selectedLoan.status) ? 'Finalice o rechace el prestamo antes de eliminarlo' : 'Eliminar prestamo'}><Trash2 size={15} /> Eliminar</button>
+              </>}
               {selectedLoan.status === 'REQUESTED' && (
                 <>
                   <button onClick={() => runAction(selectedLoan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>

@@ -1,5 +1,5 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { Loan, LoanStatus, Prisma } from '@prisma/client';
+import { Loan, LoanStatus } from '@prisma/client';
 interface LoanFilters {
     status?: LoanStatus;
     userId?: string;
@@ -85,7 +85,10 @@ export declare class LoansService {
         totalPages: number;
     }>;
     findOne(id: string): Promise<Loan>;
-    update(id: string, data: Prisma.LoanUpdateInput): Promise<Loan>;
+    update(id: string, data: any): Promise<Loan>;
+    remove(id: string): Promise<{
+        message: string;
+    }>;
     approve(id: string, approvedById: string): Promise<Loan>;
     reject(id: string, approvedById: string, notes?: string): Promise<Loan>;
     deliver(id: string, deliveryNotes?: string): Promise<Loan>;
