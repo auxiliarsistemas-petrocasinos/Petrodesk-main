@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Plus, Search, Package, ChevronLeft, ChevronRight, ArrowUpRight,
+  Plus, Search, Package, ChevronLeft, ChevronRight, Eye,
   X, Clock, Hash, Edit3, Trash2
 } from 'lucide-react'
 import Modal from '../components/Modal'
@@ -358,7 +358,7 @@ export default function Assets() {
                   <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Serial</th>
                   <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Usuario</th>
                   <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Area</th>
-                  <th className="text-right px-6 py-4"></th>
+                  <th className="text-right px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,7 +373,40 @@ export default function Assets() {
                     <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{getUserDisplayName(asset.assignedUser)}</td>
                     <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{asset.field?.name || '-'}</td>
                     <td className="px-6 py-4 text-right">
-                      <ArrowUpRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-[#FF6A23] transition-colors inline-block" />
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={(event) => { event.stopPropagation(); openDetail(asset.id) }}
+                          className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
+                          title="Ver activo"
+                          aria-label={`Ver activo ${asset.internalCode}`}
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(event) => { event.stopPropagation(); openEditModal(asset) }}
+                              className="p-2 text-slate-400 hover:text-[#FF6A23] hover:bg-orange-50 dark:hover:bg-orange-950/30 rounded-lg transition-colors"
+                              title="Editar activo"
+                              aria-label={`Editar activo ${asset.internalCode}`}
+                            >
+                              <Edit3 size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingId === asset.id}
+                              onClick={(event) => { event.stopPropagation(); handleDelete(asset) }}
+                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-40"
+                              title="Eliminar activo"
+                              aria-label={`Eliminar activo ${asset.internalCode}`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
