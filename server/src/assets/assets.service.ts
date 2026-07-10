@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Asset, AssetStatus, Prisma } from '@prisma/client';
 
@@ -203,6 +203,11 @@ export class AssetsService implements OnModuleInit {
     if (data.fieldId !== undefined) {
       updateData.field = data.fieldId ? { connect: { id: data.fieldId } } : { disconnect: true };
     }
+    if (data.assignedUserId !== undefined) {
+      updateData.assignedUser = data.assignedUserId
+        ? { connect: { id: data.assignedUserId } }
+        : { disconnect: true };
+    }
 
     const asset = await this.prisma.asset.update({
       where: { id },
@@ -217,6 +222,24 @@ export class AssetsService implements OnModuleInit {
     }
 
     return asset;
+  }
+
+  async remove(id: string) {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id },
+      select: { id: true, internalCode: true, _count: { select: { loans: true } } },
+    });
+    if (!asset) throw new NotFoundException('Activo no encontrado');
+    if (asset._count.loans > 0) {
+      throw new ConflictException('No se puede eliminar un activo con prestamos asociados.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.assetHistory.deleteMany({ where: { assetId: id } }),
+      this.prisma.asset.delete({ where: { id } }),
+    ]);
+
+    return { message: `Activo ${asset.internalCode} eliminado correctamente` };
   }
 
   async assign(assetId: string, data: { assignedUserId?: string; fieldId?: string }, userId: string) {

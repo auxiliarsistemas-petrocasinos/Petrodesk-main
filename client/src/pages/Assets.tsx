@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Plus, Search, Package, ChevronLeft, ChevronRight, ArrowUpRight,
-  X, Clock, Hash, Edit3
+  X, Clock, Hash, Edit3, Trash2
 } from 'lucide-react'
 import Modal from '../components/Modal'
 import { api } from '../lib/api'
@@ -100,6 +100,12 @@ export default function Assets() {
   const [users, setUsers] = useState<any[]>([])
   const [fields, setFields] = useState<any[]>([])
   const [formOptions, setFormOptions] = useState<Record<string, string[]>>({})
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const currentUser = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null') }
+    catch { return null }
+  }, [])
+  const isAdmin = currentUser?.role === 'ADMIN'
 
   const getFormOptions = useCallback(async () => {
     try {
@@ -253,6 +259,22 @@ export default function Assets() {
     }
   }
 
+  const handleDelete = async (asset: any) => {
+    if (!window.confirm(`¿Eliminar definitivamente el activo ${asset.internalCode}? Esta accion no se puede deshacer.`)) return
+    setDeletingId(asset.id)
+    try {
+      await api.delete(`/assets/${asset.id}`)
+      showToast('Activo eliminado correctamente', 'success')
+      setSelectedAsset(null)
+      if (assets.length === 1 && page > 1) setPage(current => current - 1)
+      else fetchAssets()
+    } catch (err: any) {
+      showToast(err.message || 'Error al eliminar el activo', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   const getUserDisplayName = (u: any) =>
     u ? (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username) : 'Sin asignar'
 
@@ -282,9 +304,11 @@ export default function Assets() {
           <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight italic uppercase">Inventario de Activos</h2>
           <p className="text-slate-500 dark:text-slate-400">Administracion de equipos y recursos tecnologicos</p>
         </div>
-        <button onClick={() => { resetForm(); setIsCreateOpen(true) }} className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02]">
-          <Plus size={18} /> Nuevo Activo
-        </button>
+        {isAdmin && (
+          <button onClick={() => { resetForm(); setIsCreateOpen(true) }} className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02]">
+            <Plus size={18} /> Nuevo Activo
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm">
@@ -320,7 +344,7 @@ export default function Assets() {
           </div>
           <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No hay activos</h3>
           <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-6">{searchQuery || statusFilter ? 'No se encontraron activos con los filtros seleccionados.' : 'Registra el primer activo del inventario.'}</p>
-          {!searchQuery && !statusFilter && (
+          {isAdmin && !searchQuery && !statusFilter && (
             <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all">
               <Plus size={18} /> Registrar Activo
             </button>
@@ -495,7 +519,7 @@ export default function Assets() {
               <div className="md:col-span-3"><Detail label="Observaciones" value={selectedAsset.observations} /></div>
             </div>
 
-            <div className="flex flex-wrap gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+            {isAdmin && <div className="flex flex-wrap gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
               <div className="flex-1 min-w-[140px]">
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Estado</label>
                 <select value={selectedAsset.status} onChange={e => handleStatusChange(selectedAsset.id, e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30">
@@ -512,11 +536,18 @@ export default function Assets() {
                   {users.map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
                 </select>
               </div>
-            </div>
+            </div>}
 
-            <button onClick={() => openEditModal(selectedAsset)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded-xl transition-colors">
-              <Edit3 size={14} /> Editar datos del activo
-            </button>
+            {isAdmin && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => openEditModal(selectedAsset)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded-xl transition-colors">
+                  <Edit3 size={14} /> Editar datos del activo
+                </button>
+                <button type="button" disabled={deletingId === selectedAsset.id} onClick={() => handleDelete(selectedAsset)} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-colors disabled:opacity-50">
+                  <Trash2 size={14} /> {deletingId === selectedAsset.id ? 'Eliminando...' : 'Eliminar activo'}
+                </button>
+              </div>
+            )}
 
             <div className="space-y-3">
               <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
