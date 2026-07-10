@@ -101,11 +101,7 @@ export default function Assets() {
   const [fields, setFields] = useState<any[]>([])
   const [formOptions, setFormOptions] = useState<Record<string, string[]>>({})
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const currentUser = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem('user') || 'null') }
-    catch { return null }
-  }, [])
-  const isAdmin = currentUser?.role === 'ADMIN'
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const getFormOptions = useCallback(async () => {
     try {
@@ -119,6 +115,7 @@ export default function Assets() {
   useEffect(() => {
     api.get('/users').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/fields').then(data => setFields(Array.isArray(data) ? data : [])).catch(() => {})
+    api.get('/assets/permissions').then(data => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
     getFormOptions()
   }, [getFormOptions])
 

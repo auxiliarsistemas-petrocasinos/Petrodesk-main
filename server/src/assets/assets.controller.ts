@@ -45,6 +45,11 @@ export class AssetsController {
     return this.assetsService.getFormOptions();
   }
 
+  @Get('permissions')
+  getPermissions(@Request() req) {
+    return { canManage: req.user?.role === 'ADMIN' };
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.assetsService.findOne(id);
