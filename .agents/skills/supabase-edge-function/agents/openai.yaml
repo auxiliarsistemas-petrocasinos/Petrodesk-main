@@ -1,0 +1,4 @@
+interface:
+  display_name: "Edge Function Supabase"
+  short_description: "Crea Edge Functions seguras"
+  default_prompt: "Usa $supabase-edge-function para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

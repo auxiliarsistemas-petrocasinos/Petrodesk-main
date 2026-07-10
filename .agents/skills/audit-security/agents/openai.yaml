@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auditar seguridad"
+  short_description: "Audita riesgos y secretos"
+  default_prompt: "Usa $audit-security para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

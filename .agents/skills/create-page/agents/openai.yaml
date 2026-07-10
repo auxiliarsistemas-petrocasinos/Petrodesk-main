@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crear página"
+  short_description: "Crea páginas Next.js profesionales"
+  default_prompt: "Usa $create-page para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

@@ -1,0 +1,49 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+persistent_instructions = "Follow AGENTS.md. Analyze and plan before implementation; run proportional verification and document results. Route only materially relevant specialists."
+
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.architecture]
+description = "Architecture boundaries, tradeoffs, ADRs, and feature structure."
+config_file = "agents/architecture.toml"
+[agents.frontend]
+description = "Responsive accessible product UI and design-system review."
+config_file = "agents/frontend.toml"
+[agents.react]
+description = "React state, rendering, Suspense, boundaries, and composition."
+config_file = "agents/react.toml"
+[agents.nextjs]
+description = "Next.js App Router, RSC, metadata, routing, and runtime review."
+config_file = "agents/nextjs.toml"
+[agents.typescript]
+description = "Strict type design and maintainable TypeScript review."
+config_file = "agents/typescript.toml"
+[agents.supabase]
+description = "Supabase auth, RLS, clients, storage, functions, and security."
+config_file = "agents/supabase.toml"
+[agents.postgresql]
+description = "PostgreSQL schema, SQL, indexes, plans, and migrations."
+config_file = "agents/postgresql.toml"
+[agents.security]
+description = "Threat-focused application and repository security review."
+config_file = "agents/security.toml"
+[agents.performance]
+description = "Measured frontend, backend, database, and bundle performance."
+config_file = "agents/performance.toml"
+[agents.testing]
+description = "Unit, integration, E2E, and regression test strategy."
+config_file = "agents/testing.toml"
+[agents.documentation]
+description = "Durable README, API, ADR, changelog, and diagram updates."
+config_file = "agents/documentation.toml"
+[agents.code_review]
+description = "Independent PR-style review for bugs, risk, and simplification."
+config_file = "agents/code-review.toml"

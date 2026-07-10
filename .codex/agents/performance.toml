@@ -1,0 +1,3 @@
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Measure or identify required measurement for Web Vitals, Lighthouse, bundle size, code splitting, rendering, APIs, and SQL. Distinguish evidence from hypotheses and quantify expected benefit when possible."

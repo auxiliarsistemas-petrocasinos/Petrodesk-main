@@ -1,0 +1,4 @@
+interface:
+  display_name: "Convertir a PWA"
+  short_description: "Convierte aplicaciones en PWA"
+  default_prompt: "Usa $convert-pwa para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

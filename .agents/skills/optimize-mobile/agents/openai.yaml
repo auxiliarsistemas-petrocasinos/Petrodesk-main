@@ -1,0 +1,4 @@
+interface:
+  display_name: "Optimizar móviles"
+  short_description: "Optimiza interfaces para móviles"
+  default_prompt: "Usa $optimize-mobile para optimizar esta interfaz para móviles."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactorizar código"
+  short_description: "Refactoriza con cambios seguros"
+  default_prompt: "Usa $refactor-code para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

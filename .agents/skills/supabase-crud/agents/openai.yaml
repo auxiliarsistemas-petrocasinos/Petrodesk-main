@@ -1,0 +1,4 @@
+interface:
+  display_name: "CRUD Supabase"
+  short_description: "Implementa CRUD seguro con RLS"
+  default_prompt: "Usa $supabase-crud para trabajar esta solicitud siguiendo el flujo profesional del proyecto."
