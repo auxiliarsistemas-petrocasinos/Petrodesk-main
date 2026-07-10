@@ -1,9 +1,12 @@
 import { AuthService } from '../../src/auth/auth.service';
+import { JwtStrategy } from '../../src/auth/jwt.strategy';
 
 jest.mock('bcrypt', () => ({ compare: jest.fn() }));
 import * as bcrypt from 'bcrypt';
 
 describe('P0 security characterization', () => {
+  beforeEach(() => jest.clearAllMocks());
+
   const user = {
     id: 'user-id',
     username: 'user',
@@ -32,8 +35,19 @@ describe('P0 security characterization', () => {
     await expect(service.validateUser(user.username, 'invalid-password')).resolves.toBeNull();
   });
 
-  it.todo('rejects inactive users during login');
-  it.todo('rejects tokens after the user is deactivated');
+  it('rejects inactive users during login', async () => {
+    const users = { findOne: jest.fn().mockResolvedValue({ ...user, isActive: false }) };
+    const service = new AuthService(users as never, { sign: jest.fn() } as never);
+    await expect(service.validateUser(user.username, 'valid-password')).resolves.toBeNull();
+    expect(bcrypt.compare).not.toHaveBeenCalled();
+  });
+
+  it('rejects tokens after the user is deactivated', async () => {
+    const strategy = Object.create(JwtStrategy.prototype) as JwtStrategy;
+    Object.assign(strategy, { usersService: { findById: jest.fn().mockResolvedValue({ ...user, isActive: false }) } });
+    await expect(strategy.validate({ sub: user.id })).rejects.toThrow();
+  });
+
   it.todo('allows only ADMIN to administer users and never exposes password');
   it.todo('rejects mass assignment in user requests');
   it.todo('scopes END_USER loans to owned resources and blocks workflow transitions');

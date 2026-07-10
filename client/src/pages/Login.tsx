@@ -54,16 +54,13 @@ export default function Login({ onLogin }: { onLogin: (token: string, user: any)
 
     setLoading(true)
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${tempData.user.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/change-initial-password`, {
+        method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${tempData.access_token}`
         },
-        body: JSON.stringify({ 
-          password: newPassword,
-          mustChangePassword: false 
-        }),
+        body: JSON.stringify({ currentPassword: password, newPassword }),
       })
 
       if (response.ok) {

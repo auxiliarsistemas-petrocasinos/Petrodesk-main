@@ -69,4 +69,9 @@ export class UsersService {
     }
   }
 
+  async setPassword(id: string, password: string, mustChangePassword: boolean): Promise<void> {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({ where: { id }, data: { password: hashedPassword, mustChangePassword } });
+  }
+
 }
