@@ -48,6 +48,5 @@ describe('P0 security characterization', () => {
     await expect(strategy.validate({ sub: user.id })).rejects.toThrow();
   });
 
-  it.todo('returns 404 when marking another user notification');
   it.todo('rejects unknown request fields through global validation');
 });
