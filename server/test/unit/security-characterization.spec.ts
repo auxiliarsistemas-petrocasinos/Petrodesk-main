@@ -48,5 +48,4 @@ describe('P0 security characterization', () => {
     await expect(strategy.validate({ sub: user.id })).rejects.toThrow();
   });
 
-  it.todo('rejects unknown request fields through global validation');
 });

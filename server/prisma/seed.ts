@@ -1,10 +1,11 @@
 import { PrismaClient, Role, AssetStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { requireDevelopmentSeedPassword } from './seed-config';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const password = await bcrypt.hash('Admin1234!', 10);
+  const password = await bcrypt.hash(requireDevelopmentSeedPassword(), 10);
 
   // 1. Create Users
   const admin = await prisma.user.upsert({
@@ -17,6 +18,7 @@ async function main() {
       role: Role.ADMIN,
       firstName: 'Administrador',
       lastName: 'Sistema',
+      mustChangePassword: true,
     },
   });
 
@@ -30,6 +32,7 @@ async function main() {
       role: Role.IT_SUPPORT,
       firstName: 'Juan',
       lastName: 'Perez',
+      mustChangePassword: true,
     },
   });
 
@@ -43,6 +46,7 @@ async function main() {
       role: Role.IT_SUPPORT,
       firstName: 'Maria',
       lastName: 'Rodriguez',
+      mustChangePassword: true,
     },
   });
 

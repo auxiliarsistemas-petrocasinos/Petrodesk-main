@@ -12,9 +12,10 @@ import { VisitsModule } from './visits/visits.module';
 import { SupabaseModule } from './supabase.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AppController } from './app.controller';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, TicketsModule, AssetsModule, FieldsModule, LoansModule, NotificationsModule, ReportsModule, VisitsModule, SupabaseModule, DashboardModule],
+  imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]), PrismaModule, AuthModule, UsersModule, TicketsModule, AssetsModule, FieldsModule, LoansModule, NotificationsModule, ReportsModule, VisitsModule, SupabaseModule, DashboardModule],
 
   controllers: [AppController],
   providers: [],

@@ -1,0 +1,13 @@
+import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+
+export class LoginDto {
+  @IsString() @MinLength(1) @MaxLength(254) username!: string;
+  @IsString() @MinLength(8) @MaxLength(128) password!: string;
+}
+
+export class ChangeInitialPasswordDto {
+  @IsString() @MinLength(8) @MaxLength(128) currentPassword!: string;
+  @IsString() @MinLength(12) @MaxLength(128)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+  newPassword!: string;
+}
