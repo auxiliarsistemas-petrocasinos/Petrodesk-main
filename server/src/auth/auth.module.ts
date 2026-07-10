@@ -5,13 +5,14 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthController } from './auth.controller';
+import { requireJwtSecret } from './auth.config';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'petrodesk_secret_key_2024',
+      secret: requireJwtSecret(),
       signOptions: { expiresIn: '1d' },
     }),
   ],

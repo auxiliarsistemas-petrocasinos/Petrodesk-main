@@ -34,7 +34,6 @@ describe('P0 security characterization', () => {
 
   it.todo('rejects inactive users during login');
   it.todo('rejects tokens after the user is deactivated');
-  it.todo('fails application startup when JWT_SECRET is absent or weak');
   it.todo('allows only ADMIN to administer users and never exposes password');
   it.todo('rejects mass assignment in user requests');
   it.todo('scopes END_USER loans to owned resources and blocks workflow transitions');
