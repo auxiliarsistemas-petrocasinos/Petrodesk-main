@@ -1,17 +1,15 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import { AppModule } from './app.module';
-import { allowedCorsOrigins } from './cors.config';
+import { configureApplication } from './app.bootstrap';
 
 let cachedServer: express.Express | undefined;
 
 export const createNestServer = async (): Promise<express.Express> => {
   const expressInstance = express();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(expressInstance));
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-  app.enableCors({ origin: allowedCorsOrigins(), credentials: false, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Accept', 'Authorization'] });
+  configureApplication(app);
   await app.init();
   return expressInstance;
 };

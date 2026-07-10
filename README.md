@@ -62,7 +62,8 @@ Petrodesk es una solución integral de gestión de soporte técnico y control de
 
 ## 🔑 Credenciales de Acceso (Seed Data)
 
-El sistema incluye datos de prueba iniciales para facilitar el testing inmediato. Todas las cuentas comparten la contraseña: **`Admin1234!`**
+El seed de desarrollo requiere una credencial temporal proporcionada mediante
+`PETRODESK_SEED_PASSWORD`, fuerza cambio inicial y está deshabilitado en producción.
 
 | Rol | Email | Usuario |
 | :--- | :--- | :--- |

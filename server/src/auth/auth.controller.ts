@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ChangeInitialPasswordDto, LoginDto } from './auth.dto';
+import { AllowPasswordChangePending } from './password-change.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -19,12 +20,14 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @AllowPasswordChangePending()
   @Get('me')
   me(@Request() req: { user: { id: string } }) {
     return this.authService.getCurrentUser(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
+  @AllowPasswordChangePending()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('change-initial-password')
   async changeInitialPassword(

@@ -9,4 +9,7 @@ module.exports = {
   coverageDirectory: './coverage',
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: { '^src/(.*)$': '<rootDir>/src/$1' },
+  coverageThreshold: {
+    global: { statements: 35, lines: 30, functions: 10, branches: 0 },
+  },
 };

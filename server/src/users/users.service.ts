@@ -22,15 +22,28 @@ export class UsersService {
     const current = await this.prisma.user.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Usuario no encontrado');
     if (id === actorId && (dto.isActive === false || (dto.role && dto.role !== Role.ADMIN))) throw new ForbiddenException('No puede desactivar ni reducir el rol de su propia cuenta');
-    if (current.role === Role.ADMIN && (dto.isActive === false || (dto.role && dto.role !== Role.ADMIN))) { const count = await this.prisma.user.count({ where: { role: Role.ADMIN, isActive: true } }); if (count <= 1) throw new ConflictException('Debe existir al menos un administrador activo'); }
     const data: Prisma.UserUpdateInput = { ...(dto.email !== undefined && { email: dto.email.toLowerCase() }), ...(dto.username !== undefined && { username: dto.username.toLowerCase() }), ...(dto.firstName !== undefined && { firstName: dto.firstName }), ...(dto.lastName !== undefined && { lastName: dto.lastName }), ...(dto.phoneNumber !== undefined && { phoneNumber: dto.phoneNumber }), ...(dto.role !== undefined && { role: dto.role }), ...(dto.isActive !== undefined && { isActive: dto.isActive }), ...(dto.mustChangePassword !== undefined && { mustChangePassword: dto.mustChangePassword }) };
+    if (current.role === Role.ADMIN && (dto.isActive === false || (dto.role && dto.role !== Role.ADMIN))) {
+      return this.prisma.$transaction(async (tx) => {
+        const count = await tx.user.count({ where: { role: Role.ADMIN, isActive: true } });
+        if (count <= 1) throw new ConflictException('Debe existir al menos un administrador activo');
+        return tx.user.update({ where: { id }, data, select: publicUserSelect });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
     return this.prisma.user.update({ where: { id }, data, select: publicUserSelect });
   }
   async removeAdministrative(id: string, actorId: string) {
     if (id === actorId) throw new ForbiddenException('No puede eliminar su propia cuenta');
     const current = await this.prisma.user.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Usuario no encontrado');
-    if (current.role === Role.ADMIN && current.isActive) { const count = await this.prisma.user.count({ where: { role: Role.ADMIN, isActive: true } }); if (count <= 1) throw new ConflictException('Debe existir al menos un administrador activo'); }
+    if (current.role === Role.ADMIN && current.isActive) {
+      return this.prisma.$transaction(async (tx) => {
+        const count = await tx.user.count({ where: { role: Role.ADMIN, isActive: true } });
+        if (count <= 1) throw new ConflictException('Debe existir al menos un administrador activo');
+        await tx.user.delete({ where: { id } });
+        return { id };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
     try { await this.prisma.user.delete({ where: { id } }); return { id }; } catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') throw new BadRequestException('No se puede eliminar el usuario porque tiene registros asociados'); throw error; }
   }
   async setPassword(id: string, password: string, mustChangePassword: boolean): Promise<void> { const hashedPassword = await bcrypt.hash(password, 10); await this.prisma.user.update({ where: { id }, data: { password: hashedPassword, mustChangePassword } }); }
