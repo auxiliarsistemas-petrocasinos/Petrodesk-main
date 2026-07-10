@@ -1,0 +1,27 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: petrodesk-postgres-test
+    labels:
+      com.petrodesk.purpose: automated-testing
+      com.petrodesk.owner: codex-p0
+    environment:
+      POSTGRES_USER: petrodesk_test_user
+      POSTGRES_PASSWORD: petrodesk_test_password
+      POSTGRES_DB: petrodesk_test
+    ports:
+      - "127.0.0.1:${PETRODESK_TEST_PG_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petrodesk_test_user -d petrodesk_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - petrodesk-test-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  petrodesk-test-postgres-data:
+    name: petrodesk-test-postgres-data
+    labels:
+      com.petrodesk.purpose: automated-testing
+      com.petrodesk.owner: codex-p0

@@ -4,6 +4,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+!**/.env.test.example
+.ecc/source/
 .ecc/source/node_modules/
 .ecc/source/.pnpm-store/
 .ecc/source/pnpm-lock.yaml
