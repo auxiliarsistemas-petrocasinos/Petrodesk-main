@@ -128,7 +128,7 @@ export default function Loans() {
   const [returnCondition, setReturnCondition] = useState('GOOD')
 
   const loadReferenceData = useCallback(() => {
-    api.get('/users').then((data) => setUsers(Array.isArray(data) ? data.filter((u: any) => u.isActive !== false) : [])).catch(() => {})
+    api.get('/users/options').then((data) => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/assets?status=AVAILABLE&pageSize=100').then((data) => setAvailableAssets(data.data || [])).catch(() => {})
     api.get('/loans/permissions').then((data) => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
   }, [])

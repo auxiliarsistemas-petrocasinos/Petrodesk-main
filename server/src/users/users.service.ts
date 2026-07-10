@@ -1,77 +1,37 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, User } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateUserDto, UpdateUserDto } from './users.dto';
+
+const publicUserSelect = { id: true, email: true, username: true, firstName: true, lastName: true, phoneNumber: true, role: true, mustChangePassword: true, isActive: true, createdAt: true, updatedAt: true } satisfies Prisma.UserSelect;
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
-
-  async findAll(): Promise<User[]> {
-    return this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
+  constructor(private prisma: PrismaService) {}
+  findAllPublic() { return this.prisma.user.findMany({ select: publicUserSelect, orderBy: { createdAt: 'desc' } }); }
+  findOptions() { return this.prisma.user.findMany({ where: { isActive: true }, select: { id: true, username: true, firstName: true, lastName: true, role: true }, orderBy: { username: 'asc' } }); }
+  async findOne(usernameOrEmail: string): Promise<User | null> { const identifier = usernameOrEmail.toLowerCase(); return this.prisma.user.findFirst({ where: { OR: [{ username: identifier }, { email: identifier }] } }); }
+  findById(id: string): Promise<User | null> { return this.prisma.user.findUnique({ where: { id } }); }
+  findPublicById(id: string) { return this.prisma.user.findUnique({ where: { id }, select: publicUserSelect }); }
+  async create(dto: CreateUserDto) {
+    const password = await bcrypt.hash(dto.password, 10);
+    return this.prisma.user.create({ data: { email: dto.email.toLowerCase(), username: dto.username.toLowerCase(), password, firstName: dto.firstName, lastName: dto.lastName, phoneNumber: dto.phoneNumber, role: dto.role ?? Role.END_USER, isActive: dto.isActive ?? true, mustChangePassword: dto.mustChangePassword ?? true }, select: publicUserSelect });
   }
-
-  async findOne(usernameOrEmail: string): Promise<User | null> {
-    const identifier = usernameOrEmail.toLowerCase();
-    return this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { username: identifier },
-          { email: identifier },
-        ],
-      },
-    });
+  async updateAdministrative(id: string, dto: UpdateUserDto, actorId: string) {
+    const current = await this.prisma.user.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Usuario no encontrado');
+    if (id === actorId && (dto.isActive === false || (dto.role && dto.role !== Role.ADMIN))) throw new ForbiddenException('No puede desactivar ni reducir el rol de su propia cuenta');
+    if (current.role === Role.ADMIN && (dto.isActive === false || (dto.role && dto.role !== Role.ADMIN))) { const count = await this.prisma.user.count({ where: { role: Role.ADMIN, isActive: true } }); if (count <= 1) throw new ConflictException('Debe existir al menos un administrador activo'); }
+    const data: Prisma.UserUpdateInput = { ...(dto.email !== undefined && { email: dto.email.toLowerCase() }), ...(dto.username !== undefined && { username: dto.username.toLowerCase() }), ...(dto.firstName !== undefined && { firstName: dto.firstName }), ...(dto.lastName !== undefined && { lastName: dto.lastName }), ...(dto.phoneNumber !== undefined && { phoneNumber: dto.phoneNumber }), ...(dto.role !== undefined && { role: dto.role }), ...(dto.isActive !== undefined && { isActive: dto.isActive }), ...(dto.mustChangePassword !== undefined && { mustChangePassword: dto.mustChangePassword }) };
+    return this.prisma.user.update({ where: { id }, data, select: publicUserSelect });
   }
-
-  async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { id } });
+  async removeAdministrative(id: string, actorId: string) {
+    if (id === actorId) throw new ForbiddenException('No puede eliminar su propia cuenta');
+    const current = await this.prisma.user.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Usuario no encontrado');
+    if (current.role === Role.ADMIN && current.isActive) { const count = await this.prisma.user.count({ where: { role: Role.ADMIN, isActive: true } }); if (count <= 1) throw new ConflictException('Debe existir al menos un administrador activo'); }
+    try { await this.prisma.user.delete({ where: { id } }); return { id }; } catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') throw new BadRequestException('No se puede eliminar el usuario porque tiene registros asociados'); throw error; }
   }
-
-  async create(data: Prisma.UserCreateInput): Promise<User> {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(data.password, salt);
-
-    return this.prisma.user.create({
-      data: {
-        ...data,
-        password: hashedPassword,
-        username: data.username.toLowerCase(),
-      },
-    });
-  }
-
-  async update(id: string, data: Prisma.UserUpdateInput): Promise<User> {
-    if (data.password) {
-      const salt = await bcrypt.genSalt(10);
-      data.password = await bcrypt.hash(data.password as string, salt);
-    }
-    if (data.username) {
-      data.username = (data.username as string).toLowerCase();
-    }
-    return this.prisma.user.update({
-      where: { id },
-      data,
-    });
-  }
-
-  async remove(id: string): Promise<User> {
-    try {
-      return await this.prisma.user.delete({ where: { id } });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
-          throw new Error('No se puede eliminar el usuario porque tiene registros asociados (tickets, activos o préstamos).');
-        }
-      }
-      throw error;
-    }
-  }
-
-  async setPassword(id: string, password: string, mustChangePassword: boolean): Promise<void> {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await this.prisma.user.update({ where: { id }, data: { password: hashedPassword, mustChangePassword } });
-  }
-
+  async setPassword(id: string, password: string, mustChangePassword: boolean): Promise<void> { const hashedPassword = await bcrypt.hash(password, 10); await this.prisma.user.update({ where: { id }, data: { password: hashedPassword, mustChangePassword } }); }
 }
