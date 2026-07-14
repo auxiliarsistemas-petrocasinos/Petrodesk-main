@@ -56,12 +56,18 @@ jobs:
       - name: Backend dependency audit
         working-directory: server
         run: npm audit --audit-level=high
-      - name: Install and verify frontend
+      - name: Install frontend
+        working-directory: client
+        run: npm ci
+      - name: Frontend checks
         working-directory: client
         run: |
-          npm ci
           npm run lint
+          npm run typecheck
           npm run build
+      - name: Frontend dependency audit
+        working-directory: client
+        run: npm audit --audit-level=high
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
