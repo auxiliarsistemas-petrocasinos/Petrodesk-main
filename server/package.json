@@ -42,7 +42,7 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
-    "ws": "8.18.3"
+    "ws": "8.21.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
