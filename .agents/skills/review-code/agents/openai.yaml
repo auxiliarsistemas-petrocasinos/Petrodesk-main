@@ -1,0 +1,4 @@
+interface:
+  display_name: "Revisar código"
+  short_description: "Realiza revisión profesional de PR"
+  default_prompt: "Usa $review-code para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

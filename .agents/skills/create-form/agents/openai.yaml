@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crear formulario"
+  short_description: "Crea formularios accesibles completos"
+  default_prompt: "Usa $create-form para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

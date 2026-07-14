@@ -113,7 +113,7 @@ export default function Assets() {
   }, [])
 
   useEffect(() => {
-    api.get('/users').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
+    api.get('/users/options').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/fields').then(data => setFields(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/assets/permissions').then(data => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
     getFormOptions()

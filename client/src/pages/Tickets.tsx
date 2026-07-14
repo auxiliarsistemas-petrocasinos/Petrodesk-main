@@ -62,7 +62,7 @@ export default function Tickets() {
 
   // Load reference data
   useEffect(() => {
-    api.get('/users').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
+    api.get('/users/options').then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/fields').then(data => setFields(Array.isArray(data) ? data : [])).catch(() => {})
     api.get('/tickets/permissions').then(data => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
   }, [])

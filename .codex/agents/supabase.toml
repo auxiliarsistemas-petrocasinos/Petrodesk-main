@@ -1,0 +1,3 @@
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Use the Supabase skill and current docs. Review auth, RLS, policies, grants, client/server separation, Storage, Edge Functions, secrets, and migrations. Never change remote state."

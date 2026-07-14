@@ -119,18 +119,42 @@ export default function Loans() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [editingLoan, setEditingLoan] = useState<any>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [capabilities, setCapabilities] = useState({ canCreateForOthers: false, canManageWorkflow: false, canEdit: false, canDelete: false })
+  const isAdmin = capabilities.canEdit
   const [users, setUsers] = useState<any[]>([])
   const [availableAssets, setAvailableAssets] = useState<any[]>([])
+  const [referenceDataReady, setReferenceDataReady] = useState(false)
+  const [referenceDataError, setReferenceDataError] = useState(false)
   const [createForm, setCreateForm] = useState({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
   const [actionModal, setActionModal] = useState<{ action: LoanAction; loan: any } | null>(null)
   const [actionComments, setActionComments] = useState('')
   const [returnCondition, setReturnCondition] = useState('GOOD')
 
-  const loadReferenceData = useCallback(() => {
-    api.get('/users').then((data) => setUsers(Array.isArray(data) ? data.filter((u: any) => u.isActive !== false) : [])).catch(() => {})
-    api.get('/assets?status=AVAILABLE&pageSize=100').then((data) => setAvailableAssets(data.data || [])).catch(() => {})
-    api.get('/loans/permissions').then((data) => setIsAdmin(data?.canManage === true)).catch(() => setIsAdmin(false))
+  const loadReferenceData = useCallback(async () => {
+    setReferenceDataReady(false)
+    setReferenceDataError(false)
+    try {
+      const [assets, permissions] = await Promise.all([
+        api.get('/assets?status=AVAILABLE&pageSize=100'),
+        api.get('/loans/permissions'),
+      ])
+      setAvailableAssets(assets.data || [])
+      setCapabilities(permissions)
+
+      if (permissions?.canCreateForOthers) {
+        const options = await api.get('/users/options')
+        setUsers(Array.isArray(options) ? options : [])
+      } else {
+        const currentUser = await api.get('/auth/me')
+        setUsers(currentUser?.id ? [currentUser] : [])
+        setCreateForm((form) => ({ ...form, userId: currentUser?.id || '' }))
+      }
+      setReferenceDataReady(true)
+    } catch {
+      setCapabilities({ canCreateForOthers: false, canManageWorkflow: false, canEdit: false, canDelete: false })
+      setUsers([])
+      setReferenceDataError(true)
+    }
   }, [])
 
   const loadLoans = useCallback(() => {
@@ -191,7 +215,12 @@ export default function Loans() {
 
   const openCreate = () => {
     setEditingLoan(null)
-    setCreateForm({ assetId: '', userId: '', expectedReturnDate: '', notes: '' })
+    setCreateForm({
+      assetId: '',
+      userId: capabilities.canCreateForOthers ? '' : users[0]?.id || '',
+      expectedReturnDate: '',
+      notes: '',
+    })
     setIsCreateOpen(true)
   }
 
@@ -296,15 +325,26 @@ export default function Loans() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-2xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] hover:bg-[#e55a1d]"
+          disabled={!referenceDataReady}
+          className="flex items-center gap-2 rounded-2xl bg-[#FF6A23] px-5 py-2.5 font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] hover:bg-[#e55a1d] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={18} />
           Solicitar Prestamo
         </button>
       </div>
 
+      {referenceDataError && (
+        <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+          <span>No fue posible cargar los datos necesarios para solicitar un prestamo.</span>
+          <button type="button" onClick={() => { void loadReferenceData() }} className="font-bold underline underline-offset-2">
+            Reintentar
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row">
         <select
+          aria-label="Filtrar prestamos por estado"
           value={statusFilter}
           onChange={(event) => {
             setStatusFilter(event.target.value)
@@ -385,16 +425,16 @@ export default function Loans() {
                       <button type="button" onClick={() => openEdit(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A23] dark:hover:bg-orange-950/30" title="Editar prestamo" aria-label={`Editar prestamo ${loanTitle(loan)}`}><Pencil size={17} /></button>
                       <button type="button" disabled={deletingId === loan.id || ['APPROVED', 'DELIVERED'].includes(loan.status)} onClick={() => handleDelete(loan)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/30" title={['APPROVED', 'DELIVERED'].includes(loan.status) ? 'Finalice o rechace el prestamo antes de eliminarlo' : 'Eliminar prestamo'} aria-label={`Eliminar prestamo ${loanTitle(loan)}`}><Trash2 size={17} /></button>
                     </>}
-                    {loan.status === 'REQUESTED' && (
+                    {capabilities.canManageWorkflow && loan.status === 'REQUESTED' && (
                       <>
                         <button onClick={() => runAction(loan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
                         <button onClick={() => openActionModal(loan, 'reject')} className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-600">Rechazar</button>
                       </>
                     )}
-                    {loan.status === 'APPROVED' && (
+                    {capabilities.canManageWorkflow && loan.status === 'APPROVED' && (
                       <button onClick={() => openActionModal(loan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>
                     )}
-                    {loan.status === 'DELIVERED' && (
+                    {capabilities.canManageWorkflow && loan.status === 'DELIVERED' && (
                       <button onClick={() => openActionModal(loan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>
                     )}
                   </div>
@@ -453,8 +493,9 @@ export default function Loans() {
       <Modal isOpen={isCreateOpen} onClose={closeForm} title={editingLoan ? 'Editar Prestamo' : 'Solicitar Prestamo'}>
         <form onSubmit={handleCreate} className="space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Activo disponible *</label>
+            <label htmlFor="loan-asset" className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Activo disponible *</label>
             {editingLoan ? <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{loanTitle(editingLoan)}</div> : <select
+              id="loan-asset"
               required
               value={createForm.assetId}
               onChange={(event) => setCreateForm((form) => ({ ...form, assetId: event.target.value }))}
@@ -470,9 +511,11 @@ export default function Loans() {
             {!editingLoan && availableAssets.length === 0 && <p className="mt-2 text-xs text-amber-600">No hay activos disponibles para prestar.</p>}
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Solicitante *</label>
+            <label htmlFor="loan-requester" className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Solicitante *</label>
             <select
+              id="loan-requester"
               required
+              disabled={!capabilities.canCreateForOthers}
               value={createForm.userId}
               onChange={(event) => setCreateForm((form) => ({ ...form, userId: event.target.value }))}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -486,8 +529,9 @@ export default function Loans() {
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Fecha esperada de devolucion *</label>
+            <label htmlFor="loan-expected-return" className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Fecha esperada de devolucion *</label>
             <input
+              id="loan-expected-return"
               required
               type="date"
               min={today}
@@ -496,14 +540,18 @@ export default function Loans() {
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </div>
-          <textarea
-            required
-            rows={3}
-            placeholder="Comentarios *"
-            value={createForm.notes}
-            onChange={(event) => setCreateForm((form) => ({ ...form, notes: event.target.value }))}
-            className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          />
+          <div>
+            <label htmlFor="loan-notes" className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Comentarios *</label>
+            <textarea
+              id="loan-notes"
+              required
+              rows={3}
+              placeholder="Comentarios *"
+              value={createForm.notes}
+              onChange={(event) => setCreateForm((form) => ({ ...form, notes: event.target.value }))}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+          </div>
           {selectedAsset && (
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Seleccionado: {selectedAsset.internalCode} / {selectedAsset.brand} {selectedAsset.model}
@@ -546,8 +594,9 @@ export default function Loans() {
 
             {actionModal.action === 'return' && (
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Condicion del activo</label>
+                <label htmlFor="loan-return-condition" className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Condicion del activo</label>
                 <select
+                  id="loan-return-condition"
                   value={returnCondition}
                   onChange={(event) => setReturnCondition(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -560,8 +609,9 @@ export default function Loans() {
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Comentarios *</label>
+              <label htmlFor="loan-action-comments" className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Comentarios *</label>
               <textarea
+                id="loan-action-comments"
                 required
                 rows={4}
                 value={actionComments}
@@ -616,14 +666,14 @@ export default function Loans() {
                 <button type="button" onClick={() => openEdit(selectedLoan)} className="flex items-center gap-2 rounded-lg bg-orange-50 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:bg-orange-100 dark:bg-orange-950/30"><Pencil size={15} /> Editar</button>
                 <button type="button" disabled={deletingId === selectedLoan.id || ['APPROVED', 'DELIVERED'].includes(selectedLoan.status)} onClick={() => handleDelete(selectedLoan)} className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-red-950/30" title={['APPROVED', 'DELIVERED'].includes(selectedLoan.status) ? 'Finalice o rechace el prestamo antes de eliminarlo' : 'Eliminar prestamo'}><Trash2 size={15} /> Eliminar</button>
               </>}
-              {selectedLoan.status === 'REQUESTED' && (
+              {capabilities.canManageWorkflow && selectedLoan.status === 'REQUESTED' && (
                 <>
                   <button onClick={() => runAction(selectedLoan, 'approve')} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">Aprobar</button>
                   <button onClick={() => openActionModal(selectedLoan, 'reject')} className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-600">Rechazar</button>
                 </>
               )}
-              {selectedLoan.status === 'APPROVED' && <button onClick={() => openActionModal(selectedLoan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>}
-              {selectedLoan.status === 'DELIVERED' && <button onClick={() => openActionModal(selectedLoan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>}
+              {capabilities.canManageWorkflow && selectedLoan.status === 'APPROVED' && <button onClick={() => openActionModal(selectedLoan, 'deliver')} className="rounded-lg bg-[#FF6A23] px-4 py-2 text-sm font-bold text-white hover:bg-[#e55a1d]">Registrar entrega</button>}
+              {capabilities.canManageWorkflow && selectedLoan.status === 'DELIVERED' && <button onClick={() => openActionModal(selectedLoan, 'return')} className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-bold text-[#FF6A23] hover:brightness-95 dark:bg-orange-950/30">Registrar devolucion</button>}
             </div>
             <div>
               <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">

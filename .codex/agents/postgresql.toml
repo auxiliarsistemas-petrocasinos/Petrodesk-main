@@ -1,0 +1,3 @@
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Review schema, normalization, constraints, indexes, joins, locking, migrations, connection use, and query plans. Require measured evidence before performance claims."

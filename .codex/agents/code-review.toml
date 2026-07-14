@@ -1,0 +1,3 @@
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Perform an independent PR review. Lead with actionable correctness and security findings, then tests, performance, accessibility, and maintainability. Cite exact files and lines; do not edit."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crear componente"
+  short_description: "Crea componentes React reutilizables"
+  default_prompt: "Usa $create-component para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -7,33 +7,46 @@ import * as bcrypt from 'bcrypt';
 export class AuthService {
   constructor(
     private usersService: UsersService,
-    private jwtService: JwtService
+    private jwtService: JwtService,
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
-    console.log(`Intentando validar usuario: ${username}`);
     const user = await this.usersService.findOne(username);
-    if (user) {
-      const isMatch = await bcrypt.compare(pass, user.password);
-      console.log(`Usuario encontrado. ¿Contraseña coincide?: ${isMatch}`);
-      if (isMatch) {
-        const { password, ...result } = user;
-        return result;
-      }
-    } else {
-      console.log('Usuario no encontrado en la base de datos');
+    if (user?.isActive && (await bcrypt.compare(pass, user.password))) {
+      const { password, ...result } = user;
+      return result;
     }
     return null;
   }
 
+  async getCurrentUser(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user?.isActive) throw new UnauthorizedException();
+    const { password, ...safeUser } = user;
+    return safeUser;
+  }
 
+  async changeInitialPassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.usersService.findById(userId);
+    if (!user?.isActive || !(await bcrypt.compare(currentPassword, user.password))) {
+      throw new UnauthorizedException('No fue posible validar las credenciales');
+    }
+    if (!user.mustChangePassword) throw new BadRequestException('El cambio inicial ya fue completado');
+    if (newPassword.length < 12 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      throw new BadRequestException('La nueva contrasena no cumple la politica de seguridad');
+    }
+    if (await bcrypt.compare(newPassword, user.password)) {
+      throw new BadRequestException('La nueva contrasena debe ser diferente');
+    }
+    await this.usersService.setPassword(userId, newPassword, false);
+  }
 
   async login(user: any) {
-    const payload = { 
-      email: user.email, 
-      sub: user.id, 
+    const payload = {
+      email: user.email,
+      sub: user.id,
       role: user.role,
-      mustChangePassword: user.mustChangePassword 
+      mustChangePassword: user.mustChangePassword,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -44,9 +57,8 @@ export class AuthService {
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
-        mustChangePassword: user.mustChangePassword
-      }
+        mustChangePassword: user.mustChangePassword,
+      },
     };
   }
-
 }

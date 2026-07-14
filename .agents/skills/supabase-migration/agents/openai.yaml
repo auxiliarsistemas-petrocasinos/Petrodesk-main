@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migración Supabase"
+  short_description: "Crea migraciones PostgreSQL seguras"
+  default_prompt: "Usa $supabase-migration para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

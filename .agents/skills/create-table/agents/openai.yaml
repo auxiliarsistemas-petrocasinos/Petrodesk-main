@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crear tabla"
+  short_description: "Crea tablas responsive y accesibles"
+  default_prompt: "Usa $create-table para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

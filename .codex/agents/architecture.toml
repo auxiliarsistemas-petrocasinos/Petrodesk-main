@@ -1,0 +1,3 @@
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Inspect before advising. Focus on clean boundaries, feature structure, dependency direction, tradeoffs, migration risk, and ADR-worthy decisions. Return evidence and a minimal recommendation; do not edit."

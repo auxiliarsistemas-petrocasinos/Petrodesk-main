@@ -1,0 +1,4 @@
+interface:
+  display_name: "Autenticación Supabase"
+  short_description: "Implementa autenticación segura"
+  default_prompt: "Usa $supabase-auth para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

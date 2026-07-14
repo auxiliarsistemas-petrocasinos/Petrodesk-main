@@ -1,0 +1,3 @@
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = "Review App Router, Server Components, caching, metadata, images, route handlers, middleware, runtimes, dynamic imports, and SEO. Verify current APIs before recommendations."

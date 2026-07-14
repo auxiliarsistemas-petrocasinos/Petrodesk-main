@@ -47,23 +47,20 @@ export default function Login({ onLogin }: { onLogin: (token: string, user: any)
       setError('Las contraseñas no coinciden')
       return
     }
-    if (newPassword.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
+    if (newPassword.length < 12 || newPassword.length > 128 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      setError('La contraseña debe tener entre 12 y 128 caracteres, con mayúscula, minúscula y número')
       return
     }
 
     setLoading(true)
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${tempData.user.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/change-initial-password`, {
+        method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${tempData.access_token}`
         },
-        body: JSON.stringify({ 
-          password: newPassword,
-          mustChangePassword: false 
-        }),
+        body: JSON.stringify({ currentPassword: password, newPassword }),
       })
 
       if (response.ok) {
@@ -95,10 +92,14 @@ export default function Login({ onLogin }: { onLogin: (token: string, user: any)
               </div>
             )}
             <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nueva Contraseña</label>
+              <label htmlFor="new-password" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nueva Contraseña</label>
               <input
+                id="new-password"
                 type="password"
                 required
+                minLength={12}
+                maxLength={128}
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#FF6A23] outline-none"
@@ -106,10 +107,14 @@ export default function Login({ onLogin }: { onLogin: (token: string, user: any)
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Confirmar Contraseña</label>
+              <label htmlFor="confirm-password" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Confirmar Contraseña</label>
               <input
+                id="confirm-password"
                 type="password"
                 required
+                minLength={12}
+                maxLength={128}
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#FF6A23] outline-none"
@@ -149,10 +154,12 @@ export default function Login({ onLogin }: { onLogin: (token: string, user: any)
           )}
 
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nombre de Usuario</label>
+            <label htmlFor="login-username" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nombre de Usuario</label>
             <input
+              id="login-username"
               type="text"
               required
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#FF6A23] focus:border-transparent outline-none transition-all"
@@ -161,10 +168,14 @@ export default function Login({ onLogin }: { onLogin: (token: string, user: any)
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Contraseña</label>
+            <label htmlFor="login-password" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Contraseña</label>
             <input
+              id="login-password"
               type="password"
               required
+              minLength={8}
+              maxLength={128}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#FF6A23] focus:border-transparent outline-none transition-all"

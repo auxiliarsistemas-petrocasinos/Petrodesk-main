@@ -1,0 +1,4 @@
+interface:
+  display_name: "Optimizar rendimiento"
+  short_description: "Optimiza Web Vitals y consultas"
+  default_prompt: "Usa $optimize-performance para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

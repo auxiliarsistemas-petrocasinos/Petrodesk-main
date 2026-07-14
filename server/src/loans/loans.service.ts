@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Loan, LoanStatus, Prisma } from '@prisma/client';
+import { LoanActor, assertCanCreateLoanFor, assertCanViewLoan, loanReadScope } from './loans.policy';
 
 interface LoanFilters {
   status?: LoanStatus;
@@ -24,9 +25,22 @@ const userSelect = {
 export class LoansService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: any, requestedById: string): Promise<Loan> {
+  private async serializable<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    try {
+      return await this.prisma.$transaction(operation, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new ConflictException('El prestamo fue modificado por otra operacion');
+      }
+      throw error;
+    }
+  }
+
+  async create(data: any, actor: LoanActor): Promise<Loan> {
+    const beneficiaryId = actor.role === 'END_USER' ? actor.id : data.userId;
+    assertCanCreateLoanFor(actor, beneficiaryId);
     if (!data.assetId) throw new BadRequestException('Debe seleccionar un activo');
-    if (!data.userId) throw new BadRequestException('Debe seleccionar un solicitante');
+    if (!beneficiaryId) throw new BadRequestException('Debe seleccionar un solicitante');
     if (!data.expectedReturnDate) throw new BadRequestException('Debe indicar la fecha esperada de devolucion');
     if (!data.notes?.trim()) throw new BadRequestException('Debe diligenciar los comentarios');
 
@@ -47,7 +61,7 @@ export class LoansService {
       throw new BadRequestException('El activo no esta disponible para prestamo');
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: beneficiaryId } });
     if (!user || !user.isActive) throw new NotFoundException('Solicitante no encontrado o inactivo');
 
     const activeLoan = await this.prisma.loan.findFirst({
@@ -61,8 +75,8 @@ export class LoansService {
     const loan = await this.prisma.loan.create({
       data: {
         asset: { connect: { id: data.assetId } },
-        user: { connect: { id: data.userId } },
-        requestedBy: { connect: { id: requestedById } },
+        user: { connect: { id: beneficiaryId } },
+        requestedBy: { connect: { id: actor.id } },
         expectedReturnDate,
         status: 'REQUESTED',
         notes: data.notes?.trim() || null,
@@ -81,8 +95,8 @@ export class LoansService {
     return loan;
   }
 
-  async findAll(filters: LoanFilters) {
-    const where: Prisma.LoanWhereInput = {};
+  async findAll(filters: LoanFilters, actor: LoanActor) {
+    const where: Prisma.LoanWhereInput = loanReadScope(actor);
     if (filters.status) where.status = filters.status;
     if (filters.userId) where.userId = filters.userId;
     if (filters.assetId) where.assetId = filters.assetId;
@@ -113,7 +127,7 @@ export class LoansService {
     return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
-  async findOne(id: string): Promise<Loan> {
+  async findOne(id: string, actor: LoanActor): Promise<Loan> {
     const loan = await this.prisma.loan.findUnique({
       where: { id },
       include: {
@@ -125,6 +139,7 @@ export class LoansService {
       },
     });
     if (!loan) throw new NotFoundException('Prestamo no encontrado');
+    assertCanViewLoan(actor, loan);
     return loan;
   }
 
@@ -180,32 +195,14 @@ export class LoansService {
       throw new BadRequestException('El activo ya no esta disponible para aprobar este prestamo');
     }
 
-    const updated = await this.prisma.loan.update({
-      where: { id },
-      data: {
-        status: 'APPROVED',
-        approvedBy: { connect: { id: approvedById } },
-      },
-      include: { asset: true, user: { select: userSelect } },
+    return this.serializable(async (tx) => {
+      const transition = await tx.loan.updateMany({ where: { id, status: 'REQUESTED' }, data: { status: 'APPROVED', approvedById } });
+      if (transition.count !== 1) throw new BadRequestException('El estado del prestamo cambio durante la operacion');
+      const updated = await tx.loan.findUniqueOrThrow({ where: { id }, include: { asset: true, user: { select: userSelect } } });
+      await tx.loanHistory.create({ data: { loanId: id, action: 'APPROVED', notes: 'Prestamo aprobado' } });
+      await tx.notification.create({ data: { userId: loan.userId, type: 'LOAN_APPROVED', message: `Tu solicitud de prestamo del activo ${updated.asset.internalCode} ha sido aprobada` } });
+      return updated;
     });
-
-    await this.prisma.loanHistory.create({
-      data: {
-        loanId: id,
-        action: 'APPROVED',
-        notes: 'Prestamo aprobado',
-      },
-    });
-
-    await this.prisma.notification.create({
-      data: {
-        userId: loan.userId,
-        type: 'LOAN_APPROVED',
-        message: `Tu solicitud de prestamo del activo ${updated.asset.internalCode} ha sido aprobada`,
-      },
-    });
-
-    return updated;
   }
 
   async reject(id: string, approvedById: string, notes?: string): Promise<Loan> {
@@ -218,33 +215,14 @@ export class LoansService {
     const cleanNotes = notes?.trim();
     if (!cleanNotes) throw new BadRequestException('Debe diligenciar los comentarios del rechazo');
 
-    const updated = await this.prisma.loan.update({
-      where: { id },
-      data: {
-        status: 'REJECTED',
-        approvedBy: { connect: { id: approvedById } },
-        notes: cleanNotes || loan.notes,
-      },
-      include: { asset: true, user: { select: userSelect } },
+    return this.serializable(async (tx) => {
+      const transition = await tx.loan.updateMany({ where: { id, status: { in: ['REQUESTED', 'APPROVED'] } }, data: { status: 'REJECTED', approvedById, notes: cleanNotes || loan.notes } });
+      if (transition.count !== 1) throw new BadRequestException('El estado del prestamo cambio durante la operacion');
+      const updated = await tx.loan.findUniqueOrThrow({ where: { id }, include: { asset: true, user: { select: userSelect } } });
+      await tx.loanHistory.create({ data: { loanId: id, action: 'REJECTED', notes: `Prestamo rechazado. Motivo: ${cleanNotes}` } });
+      await tx.notification.create({ data: { userId: loan.userId, type: 'LOAN_REJECTED', message: `Tu solicitud de prestamo del activo ${updated.asset.internalCode} ha sido rechazada` } });
+      return updated;
     });
-
-    await this.prisma.loanHistory.create({
-      data: {
-        loanId: id,
-        action: 'REJECTED',
-        notes: cleanNotes ? `Prestamo rechazado. Motivo: ${cleanNotes}` : 'Prestamo rechazado',
-      },
-    });
-
-    await this.prisma.notification.create({
-      data: {
-        userId: loan.userId,
-        type: 'LOAN_REJECTED',
-        message: `Tu solicitud de prestamo del activo ${updated.asset.internalCode} ha sido rechazada`,
-      },
-    });
-
-    return updated;
   }
 
   async deliver(id: string, deliveryNotes?: string): Promise<Loan> {
@@ -260,23 +238,15 @@ export class LoansService {
     const cleanNotes = deliveryNotes?.trim();
     if (!cleanNotes) throw new BadRequestException('Debe diligenciar los comentarios de entrega');
 
-    const [updated] = await this.prisma.$transaction([
-      this.prisma.loan.update({
-        where: { id },
-        data: {
-          status: 'DELIVERED',
-          deliveryDate: new Date(),
-        },
-        include: { asset: true, user: { select: userSelect } },
-      }),
-      this.prisma.asset.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const transition = await tx.loan.updateMany({ where: { id, status: 'APPROVED' }, data: { status: 'DELIVERED', deliveryDate: new Date() } });
+      if (transition.count !== 1) throw new BadRequestException('El estado del prestamo cambio durante la operacion');
+      await tx.asset.update({
         where: { id: loan.assetId },
-        data: {
-          status: 'IN_USE',
-          assignedUserId: loan.userId,
-        },
-      }),
-    ]);
+        data: { status: 'IN_USE', assignedUserId: loan.userId },
+      });
+      return tx.loan.findUniqueOrThrow({ where: { id }, include: { asset: true, user: { select: userSelect } } });
+    });
 
     await this.prisma.loanHistory.create({
       data: {
@@ -316,25 +286,15 @@ export class LoansService {
     const cleanNotes = notes?.trim();
     if (!cleanNotes) throw new BadRequestException('Debe diligenciar los comentarios de devolucion');
 
-    const [updated] = await this.prisma.$transaction([
-      this.prisma.loan.update({
-        where: { id },
-        data: {
-          status: 'RETURNED',
-          actualReturnDate: new Date(),
-          returnCondition: condition,
-          notes: cleanNotes ? `${loan.notes || ''}\nNotas de devolucion: ${cleanNotes}` : loan.notes,
-        },
-        include: { asset: true, user: { select: userSelect } },
-      }),
-      this.prisma.asset.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const transition = await tx.loan.updateMany({ where: { id, status: 'DELIVERED' }, data: { status: 'RETURNED', actualReturnDate: new Date(), returnCondition: condition, notes: cleanNotes ? `${loan.notes || ''}\nNotas de devolucion: ${cleanNotes}` : loan.notes } });
+      if (transition.count !== 1) throw new BadRequestException('El estado del prestamo cambio durante la operacion');
+      await tx.asset.update({
         where: { id: loan.assetId },
-        data: {
-          status: 'AVAILABLE',
-          assignedUserId: null,
-        },
-      }),
-    ]);
+        data: { status: 'AVAILABLE', assignedUserId: null },
+      });
+      return tx.loan.findUniqueOrThrow({ where: { id }, include: { asset: true, user: { select: userSelect } } });
+    });
 
     await this.prisma.loanHistory.create({
       data: {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crear dashboard"
+  short_description: "Crea dashboards modernos y rápidos"
+  default_prompt: "Usa $create-dashboard para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

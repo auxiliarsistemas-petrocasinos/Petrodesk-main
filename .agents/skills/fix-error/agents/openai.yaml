@@ -1,0 +1,4 @@
+interface:
+  display_name: "Corregir errores"
+  short_description: "Diagnostica y corrige errores"
+  default_prompt: "Usa $fix-error para trabajar esta solicitud siguiendo el flujo profesional del proyecto."

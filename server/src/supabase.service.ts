@@ -1,5 +1,19 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient,
+  type SupabaseClient,
+  type SupabaseClientOptions,
+} from '@supabase/supabase-js';
+import WebSocket from 'ws';
+
+type RealtimeTransport = NonNullable<
+  NonNullable<SupabaseClientOptions<'public'>['realtime']>['transport']
+>;
+
+// `ws` implements the browser WebSocket contract at runtime. Its event types are
+// nominally narrower than realtime-js' DOM event types, so keep the compatibility
+// assertion isolated at this vendor boundary and exercise it in Node 20 tests.
+const nodeWebSocketTransport = WebSocket as unknown as RealtimeTransport;
 
 @Injectable()
 export class SupabaseService {
@@ -13,7 +27,9 @@ export class SupabaseService {
       console.warn('Supabase URL or Key not provided. Storage features may not work.');
     }
 
-    this.supabase = createClient(supabaseUrl || '', supabaseKey || '');
+    this.supabase = createClient(supabaseUrl || '', supabaseKey || '', {
+      realtime: { transport: nodeWebSocketTransport },
+    });
   }
 
   get client() {
