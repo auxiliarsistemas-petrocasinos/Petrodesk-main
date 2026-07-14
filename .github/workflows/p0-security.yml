@@ -55,7 +55,7 @@ jobs:
           npm run build
       - name: Backend dependency audit
         working-directory: server
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
       - name: Install and verify frontend
         working-directory: client
         run: |

@@ -6,19 +6,27 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { configureApplication } from '../../src/app.bootstrap';
 import { SupabaseService } from '../../src/supabase.service';
+import { VisitsService } from '../../src/visits/visits.service';
 import { assertSafeTestDatabaseEnvironment } from '../database-guard';
 
 describe('P0 API security (e2e)', () => {
   let app: INestApplication;
   const prisma = new PrismaClient();
   const ids = { admin: '10000000-0000-4000-8000-000000000001', support: '10000000-0000-4000-8000-000000000002', end: '10000000-0000-4000-8000-000000000003', pending: '10000000-0000-4000-8000-000000000004', asset: '20000000-0000-4000-8000-000000000001', asset2: '20000000-0000-4000-8000-000000000002', loan: '30000000-0000-4000-8000-000000000001', notification: '40000000-0000-4000-8000-000000000001' };
+  const uploadFile = jest.fn().mockResolvedValue('https://example.test/report.pdf');
+  const updateReportPath = jest.fn().mockResolvedValue({ id: 'visit-e2e' });
   let adminToken = '';
   let endToken = '';
   let pendingToken = '';
 
   beforeAll(async () => {
     assertSafeTestDatabaseEnvironment();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(SupabaseService).useValue({ uploadFile: jest.fn() }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(SupabaseService)
+      .useValue({ uploadFile })
+      .overrideProvider(VisitsService)
+      .useValue({ updateReportPath })
+      .compile();
     app = moduleRef.createNestApplication();
     configureApplication(app);
     await app.init();
@@ -73,6 +81,48 @@ describe('P0 API security (e2e)', () => {
     const created = await request(app.getHttpServer()).post('/loans').set('Authorization', `Bearer ${endToken}`).send({ assetId: ids.asset2, userId: ids.support, expectedReturnDate: new Date(Date.now() + 172_800_000).toISOString(), notes: 'E2E own loan' }).expect(201);
     expect(created.body.userId).toBe(ids.end);
     await request(app.getHttpServer()).patch(`/notifications/${ids.notification}/read`).set('Authorization', `Bearer ${endToken}`).expect(404);
+  });
+
+  it('rejects missing and non-PDF visit report uploads', async () => {
+    await request(app.getHttpServer())
+      .post('/visits/non-existent/report')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/visits/non-existent/report')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .attach('file', Buffer.from('not a PDF'), {
+        filename: 'report.txt',
+        contentType: 'text/plain',
+      })
+      .expect(400);
+  });
+
+  it('passes valid PDF report data through the Express 5 upload boundary', async () => {
+    uploadFile.mockClear();
+    updateReportPath.mockClear();
+    const pdf = Buffer.from('%PDF-1.7 test report');
+
+    await request(app.getHttpServer())
+      .post('/visits/visit-e2e/report')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .attach('file', pdf, {
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    expect(uploadFile).toHaveBeenCalledWith(
+      'reports',
+      expect.stringMatching(/^report-visit-e2e-.*\.pdf$/),
+      pdf,
+      'application/pdf',
+    );
+    expect(updateReportPath).toHaveBeenCalledWith(
+      'visit-e2e',
+      'https://example.test/report.pdf',
+    );
   });
 
   it('serializes concurrent loan workflow effects', async () => {
