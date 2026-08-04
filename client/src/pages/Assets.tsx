@@ -81,6 +81,27 @@ function uniqueOptions(defaults: string[], dynamic: string[] = []) {
 const inputClass = 'w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 focus:border-[#FF6A23] text-slate-800 dark:text-white'
 const labelClass = 'block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5'
 
+function SelectField({ label, value, onChange, items, required = false }: { label: string; value: string; onChange: (value: string) => void; items: string[]; required?: boolean }) {
+  return (
+    <div>
+      <label className={labelClass}>{label}{required ? ' *' : ''}</label>
+      <select required={required} value={value} onChange={e => onChange(e.target.value)} className={inputClass}>
+        <option value="">Seleccionar</option>
+        {items.map(item => <option key={item} value={item}>{item}</option>)}
+      </select>
+    </div>
+  )
+}
+
+function TextField({ label, value, onChange, required = false, placeholder = '' }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string }) {
+  return (
+    <div>
+      <label className={labelClass}>{label}{required ? ' *' : ''}</label>
+      <input required={required} value={value} onChange={e => onChange(e.target.value)} className={inputClass} placeholder={placeholder} />
+    </div>
+  )
+}
+
 export default function Assets() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [assets, setAssets] = useState<any[]>([])
@@ -277,23 +298,6 @@ export default function Assets() {
 
   const setField = (field: keyof AssetForm, value: string) => setCreateForm(form => ({ ...form, [field]: value }))
 
-  const SelectField = ({ label, field, items, required = false }: { label: string; field: keyof AssetForm; items: string[]; required?: boolean }) => (
-    <div>
-      <label className={labelClass}>{label}{required ? ' *' : ''}</label>
-      <select required={required} value={createForm[field]} onChange={e => setField(field, e.target.value)} className={inputClass}>
-        <option value="">Seleccionar</option>
-        {items.map(item => <option key={item} value={item}>{item}</option>)}
-      </select>
-    </div>
-  )
-
-  const TextField = ({ label, field, required = false, placeholder = '' }: { label: string; field: keyof AssetForm; required?: boolean; placeholder?: string }) => (
-    <div>
-      <label className={labelClass}>{label}{required ? ' *' : ''}</label>
-      <input required={required} value={createForm[field]} onChange={e => setField(field, e.target.value)} className={inputClass} placeholder={placeholder} />
-    </div>
-  )
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -460,9 +464,9 @@ export default function Assets() {
           <section>
             <h4 className="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Equipo</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <SelectField label="Marca equipo" field="brand" items={options.brand} required />
-              <TextField label="Modelo equipo" field="model" required placeholder="Ej: Latitude 5520" />
-              <TextField label="Serial equipo" field="serial" required placeholder="Ej: SN12345678" />
+              <SelectField label="Marca equipo" value={createForm.brand} onChange={v => setField('brand', v)} items={options.brand} required />
+              <TextField label="Modelo equipo" value={createForm.model} onChange={v => setField('model', v)} required placeholder="Ej: Latitude 5520" />
+              <TextField label="Serial equipo" value={createForm.serial} onChange={v => setField('serial', v)} required placeholder="Ej: SN12345678" />
               <div>
                 <label className={labelClass}>Tipo de equipo *</label>
                 <select required value={createForm.equipmentType} onChange={e => { setField('equipmentType', e.target.value); if (e.target.value !== '__custom') setCustomEquipmentType('') }} className={inputClass}>
@@ -477,28 +481,28 @@ export default function Assets() {
                   <input required value={customEquipmentType} onChange={e => setCustomEquipmentType(e.target.value)} className={inputClass} placeholder="Ej: Mini PC" />
                 </div>
               )}
-              <SelectField label="Sistema Operativo" field="operatingSystem" items={options.operatingSystem} />
-              <TextField label="Procesador" field="processor" placeholder="Ej: Intel Core i5" />
-              <SelectField label="RAM" field="ram" items={options.ram} />
-              <SelectField label="Almacenamiento SSD" field="ssdStorage" items={options.ssdStorage} />
-              <SelectField label="Almacenamiento HDD" field="hddStorage" items={options.hddStorage} />
+              <SelectField label="Sistema Operativo" value={createForm.operatingSystem} onChange={v => setField('operatingSystem', v)} items={options.operatingSystem} />
+              <TextField label="Procesador" value={createForm.processor} onChange={v => setField('processor', v)} placeholder="Ej: Intel Core i5" />
+              <SelectField label="RAM" value={createForm.ram} onChange={v => setField('ram', v)} items={options.ram} />
+              <SelectField label="Almacenamiento SSD" value={createForm.ssdStorage} onChange={v => setField('ssdStorage', v)} items={options.ssdStorage} />
+              <SelectField label="Almacenamiento HDD" value={createForm.hddStorage} onChange={v => setField('hddStorage', v)} items={options.hddStorage} />
             </div>
           </section>
 
           <section>
             <h4 className="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Pantalla</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <TextField label="Codigo de pantalla" field="screenCode" />
-              <SelectField label="Marca de pantalla" field="screenBrand" items={options.screenBrand} />
-              <TextField label="Serial pantalla" field="screenSerial" />
-              <SelectField label="Tamano de pantalla" field="screenSize" items={options.screenSize} />
+              <TextField label="Codigo de pantalla" value={createForm.screenCode} onChange={v => setField('screenCode', v)} />
+              <SelectField label="Marca de pantalla" value={createForm.screenBrand} onChange={v => setField('screenBrand', v)} items={options.screenBrand} />
+              <TextField label="Serial pantalla" value={createForm.screenSerial} onChange={v => setField('screenSerial', v)} />
+              <SelectField label="Tamano de pantalla" value={createForm.screenSize} onChange={v => setField('screenSize', v)} items={options.screenSize} />
             </div>
           </section>
 
           <section>
             <h4 className="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Seguridad y observaciones</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <SelectField label="Antivirus" field="antivirus" items={options.antivirus} />
+              <SelectField label="Antivirus" value={createForm.antivirus} onChange={v => setField('antivirus', v)} items={options.antivirus} />
               <div className="md:col-span-2">
                 <label className={labelClass}>Observaciones</label>
                 <textarea value={createForm.observations} onChange={e => setField('observations', e.target.value)} className={`${inputClass} min-h-[96px] resize-y`} />
