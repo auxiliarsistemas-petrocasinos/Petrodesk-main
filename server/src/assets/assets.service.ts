@@ -54,7 +54,8 @@ export class AssetsService implements OnModuleInit {
       ADD COLUMN IF NOT EXISTS "screenSize" TEXT,
       ADD COLUMN IF NOT EXISTS "antivirus" TEXT,
       ADD COLUMN IF NOT EXISTS "observations" TEXT,
-      ADD COLUMN IF NOT EXISTS "sticker" TEXT;
+      ADD COLUMN IF NOT EXISTS "sticker" TEXT,
+      ADD COLUMN IF NOT EXISTS "department" TEXT;
     `);
   }
 
@@ -82,6 +83,7 @@ export class AssetsService implements OnModuleInit {
       antivirus: this.optional(data.antivirus),
       observations: this.optional(data.observations),
       sticker: this.optional(data.sticker),
+      department: this.optional(data.department),
       status: data.status || 'AVAILABLE',
       imagePath: data.imagePath,
     };
@@ -117,6 +119,7 @@ export class AssetsService implements OnModuleInit {
         { screenCode: { contains: filters.search, mode: 'insensitive' } },
         { screenSerial: { contains: filters.search, mode: 'insensitive' } },
         { sticker: { contains: filters.search, mode: 'insensitive' } },
+        { department: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -168,6 +171,7 @@ export class AssetsService implements OnModuleInit {
         hddStorage: true,
         screenSize: true,
         antivirus: true,
+        department: true,
       } as any,
     });
 
@@ -179,6 +183,7 @@ export class AssetsService implements OnModuleInit {
     return {
       brand: unique(assets.map((asset: any) => asset.brand)),
       screenBrand: unique(assets.map((asset: any) => asset.screenBrand)),
+      department: unique(assets.map((asset: any) => asset.department)),
       ...assetFormFields.reduce((acc, field) => {
         acc[field] = unique(assets.map((asset: any) => asset[field]));
         return acc;
@@ -198,7 +203,7 @@ export class AssetsService implements OnModuleInit {
     assetFormFields.forEach((field) => {
       if (data[field] !== undefined) updateData[field] = data[field] || null;
     });
-    ['processor', 'screenCode', 'screenBrand', 'screenSerial', 'observations', 'sticker'].forEach((field) => {
+    ['processor', 'screenCode', 'screenBrand', 'screenSerial', 'observations', 'sticker', 'department'].forEach((field) => {
       if (data[field] !== undefined) updateData[field] = data[field] || null;
     });
     if (data.imagePath !== undefined) updateData.imagePath = data.imagePath;

@@ -24,7 +24,8 @@ const defaultOptions = {
   ssdStorage: ['No aplica', '128 GB', '256 GB', '512 GB', '1 TB', '2 TB'],
   hddStorage: ['No aplica', '500 GB', '1 TB', '2 TB', '4 TB'],
   screenSize: ['No aplica', '19"', '20"', '21.5"', '22"', '24"', '27"', '32"'],
-  antivirus: ['Windows Defender', 'ESET', 'Kaspersky', 'Bitdefender', 'McAfee', 'Norton', 'Sin antivirus'],
+  antivirus: ['Bitdefender', 'ESET', 'Kaspersky', 'McAfee', 'Norton', 'Sin antivirus', 'Windows Defender'],
+  department: ['Activos', 'Compras', 'Costos', 'Gerencia', 'Nomina', 'Operaciones', 'Recurso humano', 'Seleccion', 'SGI', 'Sistemas'],
 }
 
 type AssetForm = {
@@ -46,6 +47,7 @@ type AssetForm = {
   antivirus: string
   observations: string
   sticker: string
+  department: string
   status: string
 }
 
@@ -68,6 +70,7 @@ const emptyForm: AssetForm = {
   antivirus: '',
   observations: '',
   sticker: '',
+  department: '',
   status: 'AVAILABLE',
 }
 
@@ -77,7 +80,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function uniqueOptions(defaults: string[], dynamic: string[] = []) {
-  return [...new Set([...defaults, ...dynamic].filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  return [...new Set([...defaults, ...dynamic].filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' })
+  )
 }
 
 const inputClass = 'w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 focus:border-[#FF6A23] text-slate-800 dark:text-white'
@@ -152,6 +157,7 @@ export default function Assets() {
     hddStorage: uniqueOptions(defaultOptions.hddStorage, formOptions.hddStorage),
     screenSize: uniqueOptions(defaultOptions.screenSize, formOptions.screenSize),
     antivirus: uniqueOptions(defaultOptions.antivirus, formOptions.antivirus),
+    department: uniqueOptions(defaultOptions.department, formOptions.department),
   }), [formOptions])
 
   const fetchAssets = useCallback(async () => {
@@ -251,6 +257,7 @@ export default function Assets() {
       antivirus: asset.antivirus || '',
       observations: asset.observations || '',
       sticker: asset.sticker || '',
+      department: asset.department || '',
       status: asset.status || 'AVAILABLE',
     })
     setCustomEquipmentType(typeExists ? '' : savedType)
@@ -364,7 +371,7 @@ export default function Assets() {
                   <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Estado</th>
                   <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Serial</th>
                   <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Usuario</th>
-                  <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Area</th>
+                  <th className="text-left px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Campo</th>
                   <th className="text-right px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acciones</th>
                 </tr>
               </thead>
@@ -437,19 +444,20 @@ export default function Assets() {
         <form onSubmit={handleCreate} className="space-y-6">
           <section>
             <h4 className="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Asignacion</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className={labelClass}>Area</label>
+                <label className={labelClass}>Campo</label>
                 <select value={createForm.fieldId} onChange={e => setField('fieldId', e.target.value)} className={inputClass}>
-                  <option value="">Sin area</option>
-                  {fields.map((field: any) => <option key={field.id} value={field.id}>{field.name}</option>)}
+                  <option value="">Sin campo</option>
+                  {[...fields].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')).map((field: any) => <option key={field.id} value={field.id}>{field.name}</option>)}
                 </select>
               </div>
+              <SelectField label="Departamento" value={createForm.department} onChange={v => setField('department', v)} items={options.department} />
               <div>
                 <label className={labelClass}>Usuario</label>
                 <select value={createForm.assignedUserId} onChange={e => setField('assignedUserId', e.target.value)} className={inputClass}>
                   <option value="">Sin asignar</option>
-                  {users.map((user: any) => <option key={user.id} value={user.id}>{getUserDisplayName(user)}</option>)}
+                  {[...users].sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b), 'es')).map((user: any) => <option key={user.id} value={user.id}>{getUserDisplayName(user)}</option>)}
                 </select>
               </div>
               <div>
@@ -538,7 +546,8 @@ export default function Assets() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <Detail label="Area" value={selectedAsset.field?.name} />
+              <Detail label="Campo" value={selectedAsset.field?.name} />
+              <Detail label="Departamento" value={selectedAsset.department} />
               <Detail label="Usuario" value={getUserDisplayName(selectedAsset.assignedUser)} />
               <Detail label="Tipo" value={selectedAsset.equipmentType} />
               <Detail label="Marca equipo" value={selectedAsset.brand} />
@@ -572,7 +581,7 @@ export default function Assets() {
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Asignar a</label>
                 <select value={selectedAsset.assignedUserId || ''} onChange={e => handleAssign(selectedAsset.id, e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30">
                   <option value="">Sin asignar</option>
-                  {users.map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
+                  {[...users].sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b), 'es')).map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
                 </select>
               </div>
             </div>}

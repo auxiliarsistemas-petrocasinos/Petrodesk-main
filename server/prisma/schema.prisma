@@ -129,6 +129,7 @@ model Asset {
   antivirus      String?
   observations   String?
   sticker        String?
+  department     String?
   status         AssetStatus @default(AVAILABLE)
   assignedUserId String?
   assignedUser   User?    @relation(fields: [assignedUserId], references: [id])
