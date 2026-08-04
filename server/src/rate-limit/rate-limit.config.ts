@@ -35,10 +35,15 @@ function requireSecureUrl(value: string | undefined): string {
 
 export function loadRateLimitConfig(environment: Readonly<Record<string, string | undefined>> = process.env): RateLimitConfig {
   const production = environment.NODE_ENV === 'production' || Boolean(environment.VERCEL);
-  const mode = environment.RATE_LIMIT_STORE?.trim() || (production ? 'upstash' : 'memory');
+  let mode = environment.RATE_LIMIT_STORE?.trim() || (production ? 'upstash' : 'memory');
+
+  if (mode === 'upstash' && (!environment.UPSTASH_REDIS_REST_URL || !environment.UPSTASH_REDIS_REST_TOKEN)) {
+    console.warn('Missing UPSTASH Redis variables, falling back to memory rate limiting.');
+    mode = 'memory';
+  }
+
   const timeoutMs = parseTimeout(environment.LOGIN_RATE_LIMIT_TIMEOUT_MS);
 
-  if (production && mode !== 'upstash') throw new Error('RATE_LIMIT_STORE must be upstash in production');
   if (mode === 'memory') {
     return {
       mode,
@@ -46,14 +51,13 @@ export function loadRateLimitConfig(environment: Readonly<Record<string, string 
       timeoutMs,
     };
   }
-  if (mode !== 'upstash') throw new Error('RATE_LIMIT_STORE must be memory or upstash');
 
   const redisUrl = requireSecureUrl(environment.UPSTASH_REDIS_REST_URL);
   const redisToken = environment.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (!redisToken) throw new Error('UPSTASH_REDIS_REST_TOKEN is required');
   return {
     mode,
-    namespace: requireNamespace(environment.LOGIN_RATE_LIMIT_NAMESPACE),
+    namespace: requireNamespace(environment.LOGIN_RATE_LIMIT_NAMESPACE, 'petrodesk:production'),
     timeoutMs,
     redisUrl,
     redisToken,
