@@ -388,7 +388,7 @@ export default function Tickets() {
                 className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 text-slate-800 dark:text-white"
               >
                 <option value="">Sin campo</option>
-                {fields.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                {[...fields].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')).map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function Tickets() {
             <div>
               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Asignar a</label>
               <select value={createForm.assignedToId} onChange={e => setCreateForm(f => ({ ...f, assignedToId: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white">
-                <option value="">Sin asignar</option>{users.map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
+                <option value="">Sin asignar</option>{[...users].sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b), 'es')).map((u: any) => <option key={u.id} value={u.id}>{getUserDisplayName(u)}</option>)}
               </select>
             </div>
           </div>}

@@ -412,7 +412,7 @@ export default function Visits() {
               className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border-none outline-none focus:ring-2 focus:ring-[#FF6A23] dark:text-white appearance-none"
             >
               <option value="">-- Seleccionar Campo --</option>
-              {fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              {[...fields].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">

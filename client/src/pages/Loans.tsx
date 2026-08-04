@@ -502,7 +502,7 @@ export default function Loans() {
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
               <option value="">Activo disponible...</option>
-              {availableAssets.map((asset: any) => (
+              {[...availableAssets].sort((a, b) => (a.internalCode || '').localeCompare(b.internalCode || '', 'es')).map((asset: any) => (
                 <option key={asset.id} value={asset.id}>
                   {asset.internalCode} - {[asset.brand, asset.model].filter(Boolean).join(' / ') || 'sin referencia'}
                 </option>
@@ -521,7 +521,7 @@ export default function Loans() {
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
               <option value="">Solicitante...</option>
-              {users.map((user: any) => (
+              {[...users].sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b), 'es')).map((user: any) => (
                 <option key={user.id} value={user.id}>
                   {getUserDisplayName(user)}{user.email ? ` (${user.email})` : ''}
                 </option>

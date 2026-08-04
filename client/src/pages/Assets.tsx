@@ -312,12 +312,12 @@ export default function Assets() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight italic uppercase">Inventario de Activos</h2>
+          <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight italic uppercase">Inventario</h2>
           <p className="text-slate-500 dark:text-slate-400">Administracion de equipos y recursos tecnologicos</p>
         </div>
         {isAdmin && (
           <button onClick={() => { resetForm(); setIsCreateOpen(true) }} className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02]">
-            <Plus size={18} /> Nuevo Activo
+            <Plus size={18} /> Nuevo Equipo
           </button>
         )}
       </div>
@@ -357,7 +357,7 @@ export default function Assets() {
           <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-6">{searchQuery || statusFilter ? 'No se encontraron activos con los filtros seleccionados.' : 'Registra el primer activo del inventario.'}</p>
           {isAdmin && !searchQuery && !statusFilter && (
             <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all">
-              <Plus size={18} /> Registrar Activo
+              <Plus size={18} /> Registrar Equipo
             </button>
           )}
         </div>
@@ -440,7 +440,7 @@ export default function Assets() {
         </div>
       )}
 
-      <Modal isOpen={isCreateOpen} onClose={resetForm} title={editMode ? 'Editar Activo' : 'Nuevo Activo'} maxWidthClassName="max-w-5xl">
+      <Modal isOpen={isCreateOpen} onClose={resetForm} title={editMode ? 'Editar Equipo' : 'Nuevo Equipo'} maxWidthClassName="max-w-5xl">
         <form onSubmit={handleCreate} className="space-y-6">
           <section>
             <h4 className="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Asignacion</h4>
@@ -525,7 +525,7 @@ export default function Assets() {
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={resetForm} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all">Cancelar</button>
             <button type="submit" disabled={loading} className="px-5 py-2.5 bg-[#FF6A23] hover:bg-[#e55a1d] text-white font-bold rounded-xl shadow-lg shadow-orange-500/10 transition-all disabled:opacity-50">
-              {editMode ? 'Guardar Cambios' : 'Registrar Activo'}
+              {editMode ? 'Guardar Cambios' : 'Registrar Equipo'}
             </button>
           </div>
         </form>
