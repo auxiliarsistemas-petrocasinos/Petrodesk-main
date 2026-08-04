@@ -128,6 +128,7 @@ model Asset {
   screenSize     String?
   antivirus      String?
   observations   String?
+  sticker        String?
   status         AssetStatus @default(AVAILABLE)
   assignedUserId String?
   assignedUser   User?    @relation(fields: [assignedUserId], references: [id])

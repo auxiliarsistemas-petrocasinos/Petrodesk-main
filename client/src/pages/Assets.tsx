@@ -45,6 +45,7 @@ type AssetForm = {
   screenSize: string
   antivirus: string
   observations: string
+  sticker: string
   status: string
 }
 
@@ -66,6 +67,7 @@ const emptyForm: AssetForm = {
   screenSize: '',
   antivirus: '',
   observations: '',
+  sticker: '',
   status: 'AVAILABLE',
 }
 
@@ -248,6 +250,7 @@ export default function Assets() {
       screenSize: asset.screenSize || '',
       antivirus: asset.antivirus || '',
       observations: asset.observations || '',
+      sticker: asset.sticker || '',
       status: asset.status || 'AVAILABLE',
     })
     setCustomEquipmentType(typeExists ? '' : savedType)
@@ -315,7 +318,7 @@ export default function Assets() {
       <div className="flex flex-col md:flex-row gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1) }} placeholder="Buscar por codigo, serial, marca, modelo, tipo o pantalla..." className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 focus:border-[#FF6A23] transition-all" />
+          <input type="text" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1) }} placeholder="Buscar por codigo, serial, sticker, marca, modelo, tipo o pantalla..." className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30 focus:border-[#FF6A23] transition-all" />
         </div>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#FF6A23]/30">
           <option value="">Todos los estados</option>
@@ -467,6 +470,7 @@ export default function Assets() {
               <SelectField label="Marca equipo" value={createForm.brand} onChange={v => setField('brand', v)} items={options.brand} required />
               <TextField label="Modelo equipo" value={createForm.model} onChange={v => setField('model', v)} required placeholder="Ej: Latitude 5520" />
               <TextField label="Serial equipo" value={createForm.serial} onChange={v => setField('serial', v)} required placeholder="Ej: SN12345678" />
+              <TextField label="Sticker" value={createForm.sticker} onChange={v => setField('sticker', v)} placeholder="Ej: PPCEF0000" />
               <div>
                 <label className={labelClass}>Tipo de equipo *</label>
                 <select required value={createForm.equipmentType} onChange={e => { setField('equipmentType', e.target.value); if (e.target.value !== '__custom') setCustomEquipmentType('') }} className={inputClass}>
@@ -546,6 +550,7 @@ export default function Assets() {
               <Detail label="SSD" value={selectedAsset.ssdStorage} />
               <Detail label="HDD" value={selectedAsset.hddStorage} />
               <Detail label="Antivirus" value={selectedAsset.antivirus} />
+              <Detail label="Sticker" value={selectedAsset.sticker} />
               <Detail label="Codigo pantalla" value={selectedAsset.screenCode} />
               <Detail label="Marca pantalla" value={selectedAsset.screenBrand} />
               <Detail label="Serial pantalla" value={selectedAsset.screenSerial} />

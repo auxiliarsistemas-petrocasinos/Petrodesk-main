@@ -53,7 +53,8 @@ export class AssetsService implements OnModuleInit {
       ADD COLUMN IF NOT EXISTS "screenSerial" TEXT,
       ADD COLUMN IF NOT EXISTS "screenSize" TEXT,
       ADD COLUMN IF NOT EXISTS "antivirus" TEXT,
-      ADD COLUMN IF NOT EXISTS "observations" TEXT;
+      ADD COLUMN IF NOT EXISTS "observations" TEXT,
+      ADD COLUMN IF NOT EXISTS "sticker" TEXT;
     `);
   }
 
@@ -80,6 +81,7 @@ export class AssetsService implements OnModuleInit {
       screenSize: this.optional(data.screenSize),
       antivirus: this.optional(data.antivirus),
       observations: this.optional(data.observations),
+      sticker: this.optional(data.sticker),
       status: data.status || 'AVAILABLE',
       imagePath: data.imagePath,
     };
@@ -114,6 +116,7 @@ export class AssetsService implements OnModuleInit {
         { operatingSystem: { contains: filters.search, mode: 'insensitive' } },
         { screenCode: { contains: filters.search, mode: 'insensitive' } },
         { screenSerial: { contains: filters.search, mode: 'insensitive' } },
+        { sticker: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -195,7 +198,7 @@ export class AssetsService implements OnModuleInit {
     assetFormFields.forEach((field) => {
       if (data[field] !== undefined) updateData[field] = data[field] || null;
     });
-    ['processor', 'screenCode', 'screenBrand', 'screenSerial', 'observations'].forEach((field) => {
+    ['processor', 'screenCode', 'screenBrand', 'screenSerial', 'observations', 'sticker'].forEach((field) => {
       if (data[field] !== undefined) updateData[field] = data[field] || null;
     });
     if (data.imagePath !== undefined) updateData.imagePath = data.imagePath;
