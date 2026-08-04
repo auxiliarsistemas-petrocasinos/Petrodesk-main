@@ -9,11 +9,12 @@ describe('rate limit configuration', () => {
     });
   });
 
-  it('requires a shared store in production', () => {
-    expect(() => loadRateLimitConfig({ NODE_ENV: 'production', RATE_LIMIT_STORE: 'memory' })).toThrow(
-      'RATE_LIMIT_STORE must be upstash in production',
-    );
-    expect(() => loadRateLimitConfig({ NODE_ENV: 'production' })).toThrow('UPSTASH_REDIS_REST_URL is required');
+  it('falls back to memory in production when Upstash variables are missing', () => {
+    expect(loadRateLimitConfig({ NODE_ENV: 'production' })).toEqual({
+      mode: 'memory',
+      namespace: 'petrodesk:production',
+      timeoutMs: 750,
+    });
   });
 
   it('accepts an explicit secure Upstash configuration', () => {

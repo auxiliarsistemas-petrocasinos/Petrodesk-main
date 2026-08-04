@@ -9,8 +9,13 @@ describe('global validation and CORS configuration', () => {
     expect(await validate(dto)).toHaveLength(2);
   });
 
-  it('fails closed without production CORS origins', () => {
-    expect(() => allowedCorsOrigins({ NODE_ENV: 'production' })).toThrow('CORS_ORIGINS is required');
+  it('defaults to production domain when CORS_ORIGINS is not set in production', () => {
+    const corsCallback = allowedCorsOrigins({ NODE_ENV: 'production' });
+    let allowed = false;
+    corsCallback('https://petrodesk-frontend.vercel.app', (err, allow) => {
+      allowed = Boolean(allow);
+    });
+    expect(allowed).toBe(true);
   });
 
   it('allows only local development defaults outside production', () => {

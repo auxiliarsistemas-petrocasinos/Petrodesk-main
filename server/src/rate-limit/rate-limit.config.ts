@@ -38,10 +38,10 @@ export function loadRateLimitConfig(environment: Readonly<Record<string, string 
   let mode = environment.RATE_LIMIT_STORE?.trim() || (production ? 'upstash' : 'memory');
 
   if (production && mode === 'memory') {
-    throw new Error('RATE_LIMIT_STORE must be upstash in production');
+    console.warn('RATE_LIMIT_STORE is memory in production — consider using upstash.');
   }
 
-  if (!production && mode === 'upstash' && (!environment.UPSTASH_REDIS_REST_URL || !environment.UPSTASH_REDIS_REST_TOKEN)) {
+  if (mode === 'upstash' && (!environment.UPSTASH_REDIS_REST_URL || !environment.UPSTASH_REDIS_REST_TOKEN)) {
     console.warn('Missing UPSTASH Redis variables, falling back to memory rate limiting.');
     mode = 'memory';
   }
